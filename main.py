@@ -1,9 +1,28 @@
-from time import sleep
 from windows import *
 from maze import *
 from generator_ import *
 
-
+USED_KEYS =["<Shift-KeyPress-Up>",
+            "<Shift-KeyPress-Down>",
+            "<Shift-KeyPress-Right>",
+            "<Shift-KeyPress-Left>",
+            "<Shift-KeyPress-w>",
+            "<Shift-KeyPress-s>",
+            "<Shift-KeyPress-d>",
+            "<Shift-KeyPress-a>",
+            "<Enter>",
+            "<Up>",
+            "<Down>",
+            "<Left>",
+            "<Right>",
+            "w",
+            "s",
+            "a",
+            "d",
+            "e",
+            "j",
+            "i",
+]
 def weapon_choice():
     while True:
         try:
@@ -18,7 +37,8 @@ def weapon_choice():
 
 
 def main():
-    name = input("What is the name of your hero?: ") or name_gen()
+    gender = input("what gender is your hero?\n(Male)(Female)(Non-Binary)\n").lower().strip
+    name = input("What is the name of your hero?: ") or name_gen(gender)
     weapon_ = weapon_choice()
     armour = Armour("leather jerkin", PLAYER_STARTING_GEAR["armor"]["leather jerkin"]["value"],PLAYER_STARTING_GEAR["armor"]["leather jerkin"]["AC"])
     player = Entity(name, 100, armour, weapon_)
@@ -35,8 +55,7 @@ def main():
     win.player_labels(player)
 
     state = {"moving": False}
-    inv_state = {"num": 2, "looking": False}  # moved outside on_use_item, persists between openings
-    prev_keys = set()
+    inv_state = {"num": 2, "looking": False}
 
     def game_over():
         win.clear()
@@ -109,16 +128,17 @@ def main():
 
         def inventory_keys():
             if not inv_state["looking"]:
+                for key in USED_KEYS:
+                    win.unbind_key(key)
+                game_keys()
                 return
-            if "<Up>" in win.keys_held: increment(-1)
-            elif "<Down>" in win.keys_held: increment(1)
-            elif "e" in win.keys_held: get_item()
-            elif "w" in win.keys_held: increment(-1)
-            elif "s" in win.keys_held: increment(1)
-            elif "<Enter>" in win.keys_held: get_item()
-            win.update_loop(inventory_keys)
+            win.bind_key("<Up>",lambda e:increment(-1))
+            win.bind_key("<Down>",lambda e:increment(-1))
+            win.bind_key("<Enter>",lambda e:get_item())
+            win.bind_key("<w>",lambda e:increment(-1))
+            win.bind_key("<s>",lambda e:increment(1))
+            win.bind_key("<e>", lambda e: get_item())
 
-        win.highlight_line(inv_state["num"], player)
         inventory_keys()
 
     def on_show_inv():
@@ -142,37 +162,34 @@ def main():
     def turn(direction):
         player.facing = direction
 
-    def loop():
-        nonlocal prev_keys
-        just_pressed = win.keys_held - prev_keys
+    def game_keys():
+        # Turning
+        win.bind_key("<Shift-KeyPress-Up>", lambda e: turn("up"))
+        win.bind_key("<Shift-KeyPress-Down>", lambda e: turn("down"))
+        win.bind_key("<Shift-KeyPress-Right>", lambda e: turn("right"))
+        win.bind_key("<Shift-KeyPress-Left>", lambda e: turn("left"))
+        win.bind_key("<Shift-KeyPress-w>", lambda e: turn("up"))
+        win.bind_key("<Shift-KeyPress-s>", lambda e: turn("down"))
+        win.bind_key("<Shift-KeyPress-d>", lambda e: turn("right"))
+        win.bind_key("<Shift-KeyPress-a>", lambda e: turn("left"))
+        # Directional keys
+        win.bind_key("<Up>", lambda e: on_move("up"))
+        win.bind_key("<Down>", lambda e: on_move("down"))
+        win.bind_key("<Left>", lambda e: on_move("left"))
+        win.bind_key("<Right>", lambda e: on_move("right"))
 
-        if "i" in just_pressed:
-            on_show_inv()
+        # WASD
+        win.bind_key("w", lambda e: on_move("up"))
+        win.bind_key("s", lambda e: on_move("down"))
+        win.bind_key("a", lambda e: on_move("left"))
+        win.bind_key("d", lambda e: on_move("right"))
 
-        if not win.inventory_show and not state["moving"]:
-            if "<Shift>" in win.keys_held:
-                if "<Up>" in win.keys_held: turn("up")
-                elif "<Down>" in win.keys_held: turn("down")
-                elif "<Left>" in win.keys_held: turn("left")
-                elif "<Right>" in win.keys_held: turn("right")
-                elif "w" in win.keys_held: turn("up")
-                elif "s" in win.keys_held: turn("down")
-                elif "a" in win.keys_held: turn("left")
-                elif "d" in win.keys_held: turn("right")
-            elif "<Up>" in win.keys_held: on_move("up")
-            elif "<Down>" in win.keys_held: on_move("down")
-            elif "<Left>" in win.keys_held: on_move("left")
-            elif "<Right>" in win.keys_held: on_move("right")
-            elif "w" in win.keys_held: on_move("up")
-            elif "s" in win.keys_held: on_move("down")
-            elif "a" in win.keys_held: on_move("left")
-            elif "d" in win.keys_held: on_move("right")
-            elif "j" in just_pressed: inspect_cell()
-            elif "e" in just_pressed: pickup()
+        # Actions
+        win.bind_key("e", lambda e: pickup())
+        win.bind_key("j", lambda e: inspect_cell())
+        win.bind_key("i", lambda e: on_show_inv())
 
-        prev_keys = set(win.keys_held)
-        win.update_loop(loop)
-    loop()
+    game_keys()
     redraw_all()
     win.wait_for_close()
 

@@ -1,4 +1,5 @@
 from tkinter import Tk, Canvas, IntVar, Label, Text, font
+from main import USED_KEYS
 
 
 class Windows:
@@ -24,8 +25,6 @@ class Windows:
         self.offset_x = 0
         self.offset_y = 0
         self.inventory_show = False
-        self.keys_held = set()
-        self.bind_key()
 
     def center_on(self, player):
         self.offset_x = self.x / 2 - player.location.cent.x
@@ -49,20 +48,11 @@ class Windows:
             fill=colour, outline="", tags=tag)
         return id_
 
-    def update_loop(self,callback):
-        self.__root.after(200,callback)
+    def bind_key(self,key,callback):
+        self.__root.bind(key,callback)
 
-    def on_key_press(self, event):
-        """Add the pressed key to the set."""
-        self.keys_held.add(event.keysym)
-
-    def on_key_release(self, event):
-        """Remove the released key from the set."""
-        self.keys_held.discard(event.keysym)
-
-    def bind_key(self):
-        self.__root.bind("<KeyPress>", self.on_key_press)
-        self.__root.bind("<KeyRelease>", self.on_key_release)
+    def unbind_key(self,key):
+        self.__root.unbind(key)
 
     def clear(self, tags=("world",)):
         self.canvas.delete(tags)
@@ -70,8 +60,8 @@ class Windows:
     def set_level(self, lvl):
         self.level_label.config(text=f"level: {lvl}")
 
-    def player_labels(self, player=None,gameover=False):
-        if gameover:
+    def player_labels(self, player=None,game_over=False):
+        if game_over:
             self.gold_label.place_forget()
             self.health_label.place_forget()
             self.inventory_text.place_forget()
@@ -129,6 +119,11 @@ class Windows:
         return self.inventory_text.get(start, end)
 
     def GAME_OVER(self,player,maze):
+        for key in USED_KEYS:
+            self.unbind_key(key)
+
+        self.bind_key("y",lambda e: maze.new_maze(player,0))
+        self.bind_key("n",self.__root.destroy())
         self.game_over_label.place(relx=0.5, rely=0.5)
         self.game_over_label.config(text=f"""
               SCORE: {player.gold * maze.level}
@@ -136,12 +131,5 @@ class Windows:
                 TRY AGAIN?
                   Y) (N
         """)
-        def catch_key():
-            if "y" in self.keys_held:
-                maze.new_maze(player,maze,0)
-            elif "n" in self.keys_held:
-                self.__root.destroy()
-            self.update_loop(catch_key)
-        catch_key()
 
 

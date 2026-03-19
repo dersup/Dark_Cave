@@ -41,6 +41,13 @@ class Entity:
 		self.max_health = max_health
 		self.health = max_health
 		self.damage_resistance = damage_resistance
+		self.attack = 0
+		self.defence = 0
+		self.luck = 0
+		self.magic_defence = 0
+		self.magic_attack = 0
+		self.agility = 0
+		self.experience = 0
 
 		self.armor = None
 		self.weapon = None
@@ -209,6 +216,8 @@ class Entity:
 				self.inventory.items["Equipped"].append(weapon_)
 				self.weapon = weapon_
 				self.remove_item(weapon_)
+		else:
+			self.weapon = weapon_
 
 	def unequip_weapon(self):
 		equipped = self.inventory.items["Equipped"]
@@ -251,23 +260,25 @@ class Entity:
 				self.inventory.items["Equipped"].append(armor_)
 				self.armor = armor_
 				self.remove_item(armor_)
+		else:
+			self.armor = armor_
 
 	def throw(self, item, maze):
 		row_old, col_old = self.location.location
 		distance = item.distance
 		for i in range(0,distance-1):
 			curr_cell = maze.cells[row_old][col_old]
-			row, col = next_cell(row_old, col_old, self.facing)
-			if not curr_cell.can_move(self.facing, maze) == "bump":
-				if not((0 <= row <= maze.num_rows - 1) and (0 <= col <= maze.num_cols - 1)):
+			if curr_cell.can_move(self.facing, maze) == "move":
+				row, col = next_cell(row_old, col_old, self.facing)
+				if not((0 < row < maze.num_rows - 1) and (0 < col < maze.num_cols - 1)):
 					print(f"you tossed {item} outside")
 					return
-			new_cell = maze.cells[row][col]
-			if "Bomb" in item.name:
 				if curr_cell.enemy_entity:
 					self.attack_target(curr_cell.enemy_entity, item, maze)
 					return
-				elif curr_cell.can_move(self.facing, maze) == "bump":
+			if "Bomb" in item.name:
+				row, col = next_cell(row_old, col_old, self.facing)
+				if curr_cell.can_move(self.facing, maze) == "bump":
 					if self.facing == "up":
 						maze.cells[row_old][col_old].top = False
 						maze.cells[row][col].bottom = False
@@ -282,8 +293,9 @@ class Entity:
 						maze.cells[row][col].left = False
 					if curr_cell == self.location:
 						self.take_damage(item.damage * 0.5, bypass_dr=True)
-					if new_cell.enemy_entity:
-						new_cell.enemy_entity.take_damage(item.damage * 0.5, bypass_dr=True)
+					other_side = maze.cells[row][col]
+					if other_side.enemy_entity:
+						other_side.enemy_entity.take_damage(item.damage * 0.5, bypass_dr=True)
 					print("the wall collapses!")
 					return
 			row_old += 1
