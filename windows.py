@@ -1,0 +1,147 @@
+from tkinter import Tk, Canvas, IntVar, Label, Text, font
+
+
+class Windows:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.__root = Tk()
+        self.__root.title("The Dark Cave")
+        self.canvas = Canvas(self.__root, bg="black", height=y, width=x)
+        self.canvas.pack()
+        self.counter = IntVar(value=1)
+        self.level_label = Label(self.__root, text="level: 1", font=("Arial", 16), bg="black", fg="white")
+        self.level_label.place(relx=0.5, rely=0.05, anchor="n")
+        self.health_label = Label(self.__root, text="HP: 0/0", font=("Arial", 16), bg="black", fg="red")
+        self.health_label.place(relx=0.1, rely=0.05, anchor="nw")
+        self.inventory_text = Text(self.__root, font=("Arial", 11), bg="black", fg="white", bd=0, highlightthickness=0, state="disabled", width=30)
+        bold_font = font.Font(family="Arial", size=11, weight="bold")
+        self.inventory_text.tag_configure("bold", font=bold_font)
+        self.gold_label = Label(self.__root, text="Gold: 0", font=("Arial", 16), bg="black", fg="gold")
+        self.gold_label.place(relx=0.1, rely=0.9, anchor="sw")
+        self.game_over_label = Label(self.__root, text="GAME OVER",font=("Arial", 25), bg="black", fg="darkred")
+        self.info_label = Label(self.__root, font=("Arial", 12), bg="black", fg="white")
+        self.offset_x = 0
+        self.offset_y = 0
+        self.inventory_show = False
+        self.keys_held = set()
+        self.bind_key()
+
+    def center_on(self, player):
+        self.offset_x = self.x / 2 - player.location.cent.x
+        self.offset_y = self.y / 2 - player.location.cent.y
+
+    def redraw(self):
+        self.__root.update_idletasks()
+        self.__root.update()
+
+    def wait_for_close(self):
+        self.__root.mainloop()
+
+    def draw_line(self, line, colour):
+        line.draw(self.canvas, colour, self.offset_x, self.offset_y)
+
+    def draw_circle(self, point, radius, colour, tag="world"):
+        x, y = point.x + self.offset_x, point.y + self.offset_y
+        id_ = self.canvas.create_oval(
+            x - radius, y - radius,
+            x + radius, y + radius,
+            fill=colour, outline="", tags=tag)
+        return id_
+
+    def update_loop(self,callback):
+        self.__root.after(200,callback)
+
+    def on_key_press(self, event):
+        """Add the pressed key to the set."""
+        self.keys_held.add(event.keysym)
+
+    def on_key_release(self, event):
+        """Remove the released key from the set."""
+        self.keys_held.discard(event.keysym)
+
+    def bind_key(self):
+        self.__root.bind("<KeyPress>", self.on_key_press)
+        self.__root.bind("<KeyRelease>", self.on_key_release)
+
+    def clear(self, tags=("world",)):
+        self.canvas.delete(tags)
+
+    def set_level(self, lvl):
+        self.level_label.config(text=f"level: {lvl}")
+
+    def player_labels(self, player=None,gameover=False):
+        if gameover:
+            self.gold_label.place_forget()
+            self.health_label.place_forget()
+            self.inventory_text.place_forget()
+            return
+        else:
+            if self.inventory_show:
+                if not self.inventory_text.winfo_ismapped():
+                    self.inventory_text.place(relx=0.5, rely=0.25,anchor="n")
+                if not self.info_label.winfo_ismapped():
+                    self.info_label.place(relx=0.7, rely=0.25,anchor="n")
+                self.inventory_formatted(str(player.inventory))
+            else:
+                self.inventory_text.place_forget()
+                self.info_label.place_forget()
+            self.health_label.config(text=f"HP: {player.health}/{player.max_health}")
+            self.gold_label.config(text=f"Gold: {str(player.gold) or "0"}")
+
+    def inventory_formatted(self, content):
+        self.inventory_text.config(state="normal")
+        self.inventory_text.delete("1.0", "end")
+        for line in content.split("\n"):
+            if line in ["Equipped", "Armors", "Weapons", "Consumables"]:
+                self.inventory_text.insert("end", line + "\n", "bold")
+            elif not line:
+                continue
+            else:
+                self.inventory_text.insert("end", line.split("(")[0].strip() + "\n")
+        self.inventory_text.config(state="disabled")
+
+    def display_info(self,content):
+        self.info_label.config(text=content)
+        self.info_label.update()
+
+    def highlight_line(self,line_number, player,bg="darkgray", fg="blue"):
+        # Remove previous highlight
+        self.inventory_text.tag_remove("highlight", "1.0", "end")
+
+        def display_item(place):
+            text = self.inventory_text.get("1.0", f"{place}.end").split("\n")
+            text = text[::-1]
+            item_name = self.inventory_text.get(f"{place}.0", f"{place}.end")
+            for category in text:
+                if category in list(player.inventory.items.keys()):
+                    items = player.inventory.items[category]
+                    for item in items:
+                        if item.name == item_name:
+                            self.display_info(str(item))
+
+        # Tag format is "line.col" — col 0 to end of line
+        start = f"{line_number}.0"
+        end = f"{line_number}.end"
+        display_item(line_number)
+        self.inventory_text.tag_add("highlight", start, end)
+        self.inventory_text.tag_config("highlight", background=bg, foreground=fg)
+        return self.inventory_text.get(start, end)
+
+    def GAME_OVER(self,player,maze):
+        self.game_over_label.place(relx=0.5, rely=0.5)
+        self.game_over_label.config(text=f"""
+              SCORE: {player.gold * maze.level}
+                GAME OVER
+                TRY AGAIN?
+                  Y) (N
+        """)
+        def catch_key():
+            if "y" in self.keys_held:
+                maze.new_maze(player,maze,0)
+            elif "n" in self.keys_held:
+                self.__root.destroy()
+            self.update_loop(catch_key)
+        catch_key()
+
+
