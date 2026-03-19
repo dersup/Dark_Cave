@@ -427,27 +427,41 @@ def generate_enemy(level=1):
     rarity = weighted_choice(RARITY)
     i = 1
     enemy = None
-    if rarity and level >= 3:
-        if base_name == "goblin":
-            enemy = Entity(f"{rarity} {base_name}", ENEMYS[base_name]["health"] * RARITY_BONUS[rarity], generate_armor_loot(base_name), generate_weapon_loot(base_name))
-        if level >= 5:
-            if base_name == "orc":
-                enemy = Entity(f"{rarity} {base_name}", ENEMYS[base_name]["health"] * RARITY_BONUS[rarity], generate_armor_loot(base_name), generate_weapon_loot(base_name))
-        if level >= 7:
-            if base_name == "skeleton":
-                enemy = Entity(f"{rarity} {base_name}", ENEMYS[base_name]["health"] * RARITY_BONUS[rarity], generate_armor_loot(base_name), generate_weapon_loot(base_name), random.randint(3, 8) * RARITY_BONUS[rarity])
-        while RARITY_BONUS[rarity] >= i:
-            if random.uniform(0, 1) <= level*0.1:
+
+    # Enemies that have a damage reduction stat (undead)
+    UNDEAD = {"skeleton", "wraith", "vampire"}
+
+    # Minimum level required for a rare variant of each enemy to spawn
+    RARE_LEVEL_THRESHOLD = {
+        "goblin":    3,
+        "orc":       5,
+        "skeleton":  7,
+        "troll":     6,
+        "wraith":    8,
+        "dark mage": 8,
+        "vampire":   9,
+    }
+
+    def make_entity(name, health, base_name):
+        if base_name in UNDEAD:
+            return Entity(name, health, generate_armor_loot(base_name), generate_weapon_loot(base_name), random.randint(3, 8))
+        return Entity(name, health, generate_armor_loot(base_name), generate_weapon_loot(base_name))
+
+    if rarity and level >= RARE_LEVEL_THRESHOLD[base_name]:
+        enemy = make_entity(
+            f"{rarity} {base_name}",
+            ENEMYS[base_name]["health"] * RARITY_BONUS[rarity],
+            base_name
+        )
+        while i <= RARITY_BONUS[rarity]:
+            if random.uniform(0, 1) <= level * 0.1:
                 enemy.add_to_inventory(generate_items_loot(base_name))
             enemy.gold += random.randint(1, 9) + ENEMYS[base_name]["gold"]
             i += 1
         return enemy
 
     else:
-        if base_name == "skeleton":
-            enemy = Entity(base_name, ENEMYS[base_name]["health"], generate_armor_loot(base_name), generate_weapon_loot(base_name), random.randint(3, 8))
-        else:
-            enemy = Entity(base_name, ENEMYS[base_name]["health"], generate_armor_loot(base_name), generate_weapon_loot(base_name))
+        enemy = make_entity(base_name, ENEMYS[base_name]["health"], base_name)
 
     if random.uniform(0, 1) <= level * 0.1:
         enemy.add_to_inventory(generate_items_loot(base_name))

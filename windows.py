@@ -40,12 +40,12 @@ class Windows:
     def draw_line(self, line, colour):
         line.draw(self.canvas, colour, self.offset_x, self.offset_y)
 
-    def draw_circle(self, point, radius, colour, tag="world"):
+    def draw_circle(self, point, radius, fill:str, outline:str, tag="world"):
         x, y = point.x + self.offset_x, point.y + self.offset_y
         id_ = self.canvas.create_oval(
             x - radius, y - radius,
             x + radius, y + radius,
-            fill=colour, outline="", tags=tag)
+            fill=fill, outline=outline, tags=tag)
         return id_
 
     def bind_key(self,key,callback):

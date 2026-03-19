@@ -88,12 +88,28 @@ class Cell:
     def enemy_tracking(self):
         if self.enemy_entity:
             if not self.enemy_entity.id_:
+                outline = ""
+                if "rare" in self.enemy_entity.name.lower():
+                    outline = "orange"
+                elif "epic" in self.enemy_entity.name.lower():
+                    outline = "blue"
+                elif "legendary" in self.enemy_entity.name.lower():
+                    outline = "gold"
                 if "skeleton" in self.enemy_entity.name:
-                    self.enemy_entity.id_ = self.__win.draw_circle(self.cent, 5, "gray")
+                    self.enemy_entity.id_ = self.__win.draw_circle(self.cent, 5, "gray",outline=outline)
                 if "orc" in self.enemy_entity.name:
-                    self.enemy_entity.id_ = self.__win.draw_circle(self.cent, 5, "dark green")
+                    self.enemy_entity.id_ = self.__win.draw_circle(self.cent, 5, "dark green",outline=outline)
                 if "goblin" in self.enemy_entity.name:
-                    self.enemy_entity.id_ = self.__win.draw_circle(self.cent, 3, "green")
+                    self.enemy_entity.id_ = self.__win.draw_circle(self.cent, 3, "green",outline=outline)
+                if "troll" in self.enemy_entity.name:
+                    self.enemy_entity.id_ = self.__win.draw_circle(self.cent, 5, "brown",outline=outline)
+                if "wraith" in self.enemy_entity.name:
+                    self.enemy_entity.id_ = self.__win.draw_circle(self.cent, 5, "white",outline=outline)
+                if "vampire" in self.enemy_entity.name:
+                    self.enemy_entity.id_ = self.__win.draw_circle(self.cent, 3, "red",outline=outline)
+                if "dark mage" in self.enemy_entity.name:
+                    self.enemy_entity.id_ = self.__win.draw_circle(self.cent, 3, "purple",outline=outline)
+
             else:
                 self.__win.canvas.coords(
                     self.enemy_entity.id_,
@@ -102,9 +118,6 @@ class Cell:
                     self.cent.x + 5,
                     self.cent.y + 5
                 )
-
-            if self.enemy_entity.health <= 0:
-                self.remove_enemy()
 
     def remove_player(self):
         if self.player_entity:
