@@ -98,44 +98,54 @@ class Healing(Item):
 
 
 class Weapon(Item):
-    def __init__(self,in_name ="fists", gold= 0, attack=-1, damage=[Elements("physical", -1),]):
-        super().__init__(in_name= in_name, gold= gold, description="")
+    def __init__(self,in_name ="fists", gold= 0, attack=-1, elements=[Elements("physical", -1),],description=""):
+        super().__init__(in_name= in_name, gold= gold, description=description)
         self.attack = attack
-        self.damage = damage
+        self.elements = elements
+        self.stat_bonuses =  {
+			"attack": 0,
+			"defence": 0,
+			"luck": 0,
+			"magic_defence": 0,
+			"magic_attack": 0,
+			"agility": 0,
+			"exp":0
+		}
+        self.description = f"{self.elements}\n{str(self.stat_bonuses)}\n{self.description}"
 
     def __repr__(self):
-        return f"{self.name} (DMG: {self.damage}, ATK: {self.attack}, G: {self.value})\n{self.description}"
+        return f"{self.name} (DMG: {self.elements}, ATK: {self.attack}, G: {self.value})\n{self.description}"
 
     def __eq__(self, other):
         if not isinstance(other, Weapon):
             return False
-        return self.name == other.name and self.damage == other.damage and self.attack == other.attack and self.value == other.value
+        return self.name == other.name and self.elements == other.elements and self.attack == other.attack and self.value == other.value
 
 
     def __hash__(self):
-        return hash((self.name, self.damage, self.attack))
+        return hash((self.name, self.elements, self.attack))
 
 
 class Throwing(Weapon):
-    def __init__(self,in_name, distance: int, gold: int, damage: Elements, attack=0):
-        super().__init__(in_name=in_name, gold = gold,attack=attack, damage=damage)
+    def __init__(self,in_name, distance: int, gold: int, elements: list, attack=0, description=""):
+        super().__init__(in_name=in_name, gold = gold, attack=attack, elements=elements, description=description)
         self.distance = distance
 
     def __repr__(self):
-        return f"{self.name} (Range: {self.distance}, {self.damage}, ATK: {self.attack}, G: {self.value})\n{self.description}"
+        return f"{self.name} (Range: {self.distance}, {self.elements}, ATK: {self.attack}, G: {self.value})\n{self.description}"
 
     def __eq__(self, other):
         if not isinstance(other, Throwing):
             return False
-        return self.name == other.name and self.damage == other.damage and self.distance == other.distance
+        return self.name == other.name and self.elements == other.elements and self.distance == other.distance
 
     def __hash__(self):
-        return hash((self.name, self.damage, self.attack ,self.distance))
+        return hash((self.name, self.elements, self.attack ,self.distance))
 
 
 class Armour(Item):
-    def __init__(self, in_name="undergarments", gold=0, ac=-1):
-        super().__init__(in_name=in_name, gold=gold, description="")
+    def __init__(self, in_name="undergarments", gold=0, ac=-1,description=""):
+        super().__init__(in_name=in_name, gold=gold, description=description)
         self.AC = ac
         self.resistances = {
         "fire":      0.00,
@@ -149,7 +159,16 @@ class Armour(Item):
         "poison":    0.00,
         "physical":  0.00,
         }
-        self.description += str(self.resistances)
+        self.stat_bonuses = {
+            "attack": 0,
+            "defence": 0,
+            "luck": 0,
+            "magic_defence": 0,
+            "magic_attack": 0,
+            "agility": 0,
+            "exp": 0
+        }
+        self.description = f"{str(self.resistances)}\n{str(self.stat_bonuses)}\n{self.description}"
 
     def __repr__(self):
         return f"{self.name} (AC: {self.AC}, G: {self.value})\n{self.description}"

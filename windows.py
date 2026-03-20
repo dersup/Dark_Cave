@@ -23,7 +23,8 @@ class Windows:
         self.gold_label.place(relx=0.1, rely=0.9, anchor="sw")
         self.game_over_label = Label(self.__root, text="GAME OVER",font=("Arial", 25), bg="black", fg="darkred")
         self.info_label = Label(self.__root, font=("Arial", 12), bg="black", fg="white")
-        self.P_level = Label(self.__root, font=bold_font, bg="black", fg="gold")
+        self.P_level = Text(self.__root, font=("Arial", 11), bg="black", fg="gold", bd=0, highlightthickness=0, state="disabled", width=30)
+
         self.offset_x = 0
         self.offset_y = 0
         self.inventory_show = False
@@ -135,9 +136,35 @@ class Windows:
         """)
 
     def show_level_up(self,player):
-        self.P_level.config(text=f"LEVEL UP!, LEVEL {player.level}",)
-        self.P_level.update()
         self.P_level.place(relx=0.5, rely=0.5)
+        self.P_level.config(state="normal")
+        self.P_level.delete("1.0", "end")
+        self.P_level.insert("end",f"LEVEL UP!, LEVEL {player.level}","bold",)
+        self.P_level.config(state="disabled")
         time.sleep(1)
-        self.P_level.config(text=f"choose an ability score to increase:\nattack: {player.stats["attack"]}\ndefence: {player.stats["defence"]}\nluck: {player.stats["luck"]}\nmagic_defence: {player.stats["magic_defence"]}\nmagic_attack: {player.stats["magic_attack"]}\nagility: {player.stats["agility"]})
+        total_points = 3
+        incr = {"num":2}
+        def increment(change):
+            new_val = incr["num"] + change
+            if 2 < new_val < len(player.stats.keys()-1):
+                incr["num"] = new_val
+                self.highlight_line(incr["num"], player)
+        def get_item():
+            item_name = self.highlight_line(incr["num"], player).split(":")[0].strip()
+            print(f"{item_name} increased you have {total_points} points remaining")
+            player.stats[item_name] += 1
+        self.bind_key("<Up>", lambda e: increment(-1))
+        self.bind_key("<Down>", lambda e: increment(-1))
+        self.bind_key("<Enter>", lambda e: get_item())
+        self.bind_key("<w>", lambda e: increment(-1))
+        self.bind_key("<s>", lambda e: increment(1))
+        self.bind_key("<e>", lambda e: get_item())
+        while total_points:
+            self.inventory_text.config(state="normal")
+            self.inventory_text.delete("1.0", "end")
+            self.P_level.insert("end",
+                                f" you have {total_points} stat points choose an ability score to increase:\nattack: {player.stats["attack"]}\ndefence: {player.stats["defence"]}\nluck: {player.stats["luck"]}\nmagic_defence: {player.stats["magic_defence"]}\nmagic_attack: {player.stats["magic_attack"]}\nagility: {player.stats["agility"]}",
+                                "bold")
+            self.P_level.config(state="disabled")
+            time.sleep(1/60)
         self.P_level.place_forget()

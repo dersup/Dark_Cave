@@ -143,6 +143,7 @@ def main():
             item_name = win.highlight_line(inv_state["num"], player)
             print(f"using{item_name}")
             player.use_item(item_name.strip(), maze_)
+            win.inventory_formatted(str(player.inventory))
             do_enemy_turn()
 
         def increment(change):
@@ -154,6 +155,7 @@ def main():
                 else:
                     inv_state["num"] = new_val
                 win.highlight_line(inv_state["num"], player)
+                win.inventory_formatted(str(player.inventory))
 
         def inventory_keys():
             if not inv_state["looking"]:
