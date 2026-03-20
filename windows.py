@@ -1,3 +1,4 @@
+import time
 from tkinter import Tk, Canvas, IntVar, Label, Text, font
 from main import USED_KEYS
 
@@ -22,6 +23,7 @@ class Windows:
         self.gold_label.place(relx=0.1, rely=0.9, anchor="sw")
         self.game_over_label = Label(self.__root, text="GAME OVER",font=("Arial", 25), bg="black", fg="darkred")
         self.info_label = Label(self.__root, font=("Arial", 12), bg="black", fg="white")
+        self.P_level = Label(self.__root, font=bold_font, bg="black", fg="gold")
         self.offset_x = 0
         self.offset_y = 0
         self.inventory_show = False
@@ -132,4 +134,10 @@ class Windows:
                   Y) (N
         """)
 
-
+    def show_level_up(self,player):
+        self.P_level.config(text=f"LEVEL UP!, LEVEL {player.level}",)
+        self.P_level.update()
+        self.P_level.place(relx=0.5, rely=0.5)
+        time.sleep(1)
+        self.P_level.config(text=f"choose an ability score to increase:\nattack: {player.stats["attack"]}\ndefence: {player.stats["defence"]}\nluck: {player.stats["luck"]}\nmagic_defence: {player.stats["magic_defence"]}\nmagic_attack: {player.stats["magic_attack"]}\nagility: {player.stats["agility"]})
+        self.P_level.place_forget()

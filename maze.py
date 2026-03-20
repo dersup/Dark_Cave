@@ -209,3 +209,6 @@ class Maze:
         self.create_maze()
         self.player_init(player)
         self.monsters_init()
+
+    def level_up(self, player):
+        self.__win.show_level_up(player)

@@ -1,14 +1,79 @@
+from classes import Elements
 from entity import *
 
-ENEMYS = {
-    "goblin":    {"health": 20,  "attack": 5,  "defence": 10, "luck": 20, "magic_defence": 0,  "magic_attack": 0,  "agility": 0,  "exp": 10,  "gold": 1},
-    "orc":       {"health": 50,  "attack": 12, "defence": 18, "luck": 5,  "magic_defence": 2,  "magic_attack": 0,  "agility": 3,  "exp": 25,  "gold": 3},
-    "skeleton":  {"health": 60,  "attack": 8,  "defence": 25, "luck": 5,  "magic_defence": 15, "magic_attack": 0,  "agility": 0,  "exp": 30,  "gold": 10},
-    "troll":     {"health": 90,  "attack": 18, "defence": 20, "luck": 3,  "magic_defence": 0,  "magic_attack": 0,  "agility": 0,  "exp": 50,  "gold": 5},
-    "wraith":    {"health": 35,  "attack": 10, "defence": 5,  "luck": 10, "magic_defence": 30, "magic_attack": 20, "agility": 25, "exp": 55,  "gold": 15},
-    "dark mage": {"health": 30,  "attack": 3,  "defence": 5,  "luck": 15, "magic_defence": 20, "magic_attack": 30, "agility": 5,  "exp": 60,  "gold": 20},
-    "vampire":   {"health": 70,  "attack": 20, "defence": 15, "luck": 20, "magic_defence": 25, "magic_attack": 15, "agility": 20, "exp": 80,  "gold": 25},
+ENEMIES = {
+    "goblin": {"stats":{
+        "health": 20, "attack": 5, "defence": 10, "luck": 20,
+        "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 10, "gold": 1
+        },
+        "resistances": {
+            "fire": 0.00, "ice": 0.00, "lightning": 0.00, "water": 0.00,
+            "earth": 0.10, "wind": 0.00, "light": 0.00, "dark": 0.00,
+            "poison": -0.25, "physical": 0.00,
+        }
+    },
+    "orc": {"stats":{
+        "health": 50, "attack": 12, "defence": 18, "luck": 5,
+        "magic_defence": 2, "magic_attack": 0, "agility": 3, "exp": 25, "gold": 3
+        },
+        "resistances": {
+            "fire": 0.00, "ice": 0.00, "lightning": 0.00, "water": 0.00,
+            "earth": 0.20, "wind": 0.00, "light": 0.00, "dark": 0.10,
+            "poison": -0.10, "physical": 0.15,
+        }
+    },
+    "skeleton": {"stats":{
+        "health": 60, "attack": 8, "defence": 25, "luck": 5,
+        "magic_defence": 15, "magic_attack": 0, "agility": 0, "exp": 30, "gold": 10
+        },
+        "resistances": {
+            "fire": -0.50, "ice": 0.50, "lightning": 0.00, "water": 0.00,
+            "earth": 0.00, "wind": 0.00, "light": -0.50, "dark": 0.75,
+            "poison": 1.00, "physical": 0.25,
+        }
+    },
+    "troll": {"stats":{
+        "health": 90, "attack": 18, "defence": 20, "luck": 3,
+        "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 50, "gold": 5
+        },
+        "resistances": {
+            "fire": -0.50, "ice": 0.10, "lightning": 0.00, "water": 0.20,
+            "earth": 0.30, "wind": 0.00, "light": 0.00, "dark": 0.00,
+            "poison": 0.25, "physical": 0.20,
+        }
+    },
+    "wraith": {"stats":{
+        "health": 35, "attack": 10, "defence": 5, "luck": 10,
+        "magic_defence": 30, "magic_attack": 20, "agility": 25, "exp": 55, "gold": 15
+        },
+        "resistances": {
+            "fire": 0.00, "ice": 0.00, "lightning": 0.00, "water": 0.00,
+            "earth": 0.00, "wind": 0.50, "light": -0.75, "dark": 1.00,
+            "poison": 1.00, "physical": 0.50,
+        }
+    },
+    "dark mage": {"stats":{
+        "health": 30, "attack": 3, "defence": 5, "luck": 15,
+        "magic_defence": 20, "magic_attack": 30, "agility": 5, "exp": 60, "gold": 20
+        },
+        "resistances": {
+            "fire": 0.00, "ice": 0.00, "lightning": 0.00, "water": 0.00,
+            "earth": 0.00, "wind": 0.00, "light": -0.50, "dark": 0.75,
+            "poison": 0.25, "physical": 0.00,
+        }
+    },
+    "vampire": {"stats":{
+        "health": 70, "attack": 20, "defence": 15, "luck": 20,
+        "magic_defence": 25, "magic_attack": 15, "agility": 20, "exp": 80, "gold": 25
+        },
+        "resistances": {
+            "fire": -0.25, "ice": 0.25, "lightning": 0.00, "water": 0.00,
+            "earth": 0.00, "wind": 0.00, "light": -1.00, "dark": 1.00,
+            "poison": 1.00, "physical": 0.25,
+        }
+    },
 }
+
 
 ENEMYS_WEIGHT = {
     "1":  {"goblin": 90, "orc": 10, "skeleton": 0,  "troll": 0,  "wraith": 0,  "dark mage": 0,  "vampire": 0},
@@ -281,12 +346,12 @@ RARITY_BONUS = {
 }
 
 BASE_WEAPONS = {
-    "dagger": {"damage": 2, "attack": 4, "value": 40},
-    "short sword": {"damage": 3, "attack": 3, "value": 60},
-    "long sword": {"damage": 4, "attack": 2, "value": 80},
-    "spear": {"damage": 4, "attack": 2, "value": 100},
-    "club": {"damage": 5, "attack": 1, "value": 50},
-    "axe": {"damage": 6, "attack": 0, "value": 70},
+    "dagger": {"damage": Elements("physical",2), "attack": 4, "value": 40},
+    "short sword": {"damage":  Elements("physical",3), "attack": 3, "value": 60},
+    "long sword": {"damage":  Elements("physical",4), "attack": 2, "value": 80},
+    "spear": {"damage":  Elements("physical",3), "attack": 2, "value": 100},
+    "club": {"damage":  Elements("physical",5), "attack": 1, "value": 50},
+    "axe": {"damage":  Elements("physical",6), "attack": 0, "value": 70},
 }
 
 BASE_ARMOR = {
@@ -336,6 +401,178 @@ PLAYER_STARTING_GEAR = {
 
 }
 
+ELEMENT_RESIST = {
+    "fire":      0.00,  # % damage blocked
+    "ice":       0.00,
+    "lightning": 0.00,
+    "water":     0.00,
+    "earth":     0.00,
+    "wind":      0.00,
+    "light":     0.00,
+    "dark":      0.00,
+    "poison":    0.00,
+    "physical":  0.00,
+}
+
+ITEM_MODIFIERS = { "weapons": {
+    "single": {
+    # ── WEAPONS ──────────────────────────────────────────────────────────────
+        "of_fire": {
+            "type": "weapon",
+            "damage_bonus": {"fire": 0.25},
+            "description": "Wreathed in flames, deals bonus fire damage.",
+        },
+        "of_frost": {
+            "type": "weapon",
+            "damage_bonus": {"ice": 0.25},
+            "description": "Chills the air, deals bonus ice damage.",
+        },
+        "of_storms": {
+            "type": "weapon",
+            "damage_bonus": {"lightning": 0.35},
+            "description": "Crackles with electricity, deals bonus lightning damage.",
+        },
+        "of_venom": {
+            "type": "weapon",
+            "damage_bonus": {"poison": 0.20},
+            "description": "Drips with toxin, deals bonus poison damage.",
+        },
+        "of_darkness": {
+            "type": "weapon",
+            "damage_bonus": {"dark": 0.30},
+            "description": "Radiates shadow energy, deals bonus dark damage.",
+        },
+        "of_radiance": {
+            "type": "weapon",
+            "damage_bonus": {"light": 0.30},
+            "description": "Gleams with holy light, deals bonus light damage.",
+        },
+        "of_the_gale": {
+            "type": "weapon",
+            "damage_bonus": {"wind": 0.20},
+            "description": "Hums with wind force, deals bonus wind damage.",
+        },
+        "of_the_earth": {
+            "type": "weapon",
+            "damage_bonus": {"earth": 0.20},
+            "description": "Resonates with stone, deals bonus earth damage.",
+        },
+        "of_the_tide": {
+            "type": "weapon",
+            "damage_bonus": {"water": 0.20},
+            "description": "Flows with aquatic force, deals bonus water damage.",
+        },
+    },
+    # Dual-element weapons
+    "dual":{
+        "of_hellfire": {
+            "type": "weapon",
+            "damage_bonus": {"fire": 0.20, "dark": 0.20},
+            "description": "Burns with infernal energy, deals fire and dark damage.",
+        },
+        "of_the_blizzard": {
+            "type": "weapon",
+            "damage_bonus": {"ice": 0.20, "wind": 0.15},
+            "description": "Howls with arctic winds, deals ice and wind damage.",
+        },
+        "of_the_tempest": {
+            "type": "weapon",
+            "damage_bonus": {"lightning": 0.20, "wind": 0.20},
+            "description": "Roars with storm power, deals lightning and wind damage.",
+        },
+        "of_the_plague": {
+            "type": "weapon",
+            "damage_bonus": {"poison": 0.15, "dark": 0.15},
+            "description": "Festers with corruption, deals poison and dark damage.",
+        },
+        "of_the_crusader": {
+            "type": "weapon",
+            "damage_bonus": {"light": 0.20, "fire": 0.15},
+            "description": "Blazes with divine wrath, deals light and fire damage.",
+        },
+    },
+
+    # ── ARMOR ─────────────────────────────────────────────────────────────────
+},
+    "armour":{
+        "single":{
+            "of_flame_warding": {
+                "type": "armor",
+                "resistance_bonus": {"fire": 0.20},
+                "description": "Treated with fireproof resin, resists fire damage.",
+            },
+            "of_frost_warding": {
+                "type": "armor",
+                "resistance_bonus": {"ice": 0.20},
+                "description": "Lined with insulating fur, resists ice damage.",
+            },
+            "of_grounding": {
+                "type": "armor",
+                "resistance_bonus": {"lightning": 0.20},
+                "description": "Woven with copper mesh, resists lightning damage.",
+            },
+            "of_the_antidote": {
+                "type": "armor",
+                "resistance_bonus": {"poison": 0.25},
+                "description": "Laced with alchemical herbs, resists poison damage.",
+            },
+            "of_the_shadow": {
+                "type": "armor",
+                "resistance_bonus": {"dark": 0.25},
+                "description": "Warded with runes, resists dark damage.",
+            },
+            "of_the_faithful": {
+                "type": "armor",
+                "resistance_bonus": {"light": 0.25},
+                "description": "Blessed by a priest, resists light damage.",
+            },
+            "of_the_zephyr": {
+                "type": "armor",
+                "resistance_bonus": {"wind": 0.20},
+                "description": "Aerodynamic weave, resists wind damage.",
+            },
+            "of_the_bedrock": {
+                "type": "armor",
+                "resistance_bonus": {"earth": 0.20},
+                "description": "Reinforced with stone dust, resists earth damage.",
+            },
+            "of_the_depths": {
+                "type": "armor",
+                "resistance_bonus": {"water": 0.20},
+                "description": "Sealed with pitch, resists water damage.",
+            },
+        },
+    # Dual-element armor
+        "dual":{
+            "of_the_guardian": {
+                "type": "armor",
+                "resistance_bonus": {"fire": 0.15, "ice": 0.15},
+                "description": "Balanced against extremes, resists fire and ice damage.",
+            },
+            "of_the_exorcist": {
+                "type": "armor",
+                "resistance_bonus": {"dark": 0.20, "poison": 0.15},
+                "description": "Purified against corruption, resists dark and poison damage.",
+            },
+            "of_the_ancients": {
+                "type": "armor",
+                "resistance_bonus": {"earth": 0.15, "water": 0.15},
+                "description": "Attuned to nature, resists earth and water damage.",
+            },
+            "of_the_storm_wall": {
+                "type": "armor",
+                "resistance_bonus": {"lightning": 0.15, "wind": 0.15},
+                "description": "Braced against the tempest, resists lightning and wind damage.",
+            },
+            "of_the_sanctified": {
+                "type": "armor",
+                "resistance_bonus": {"light": 0.15, "dark": 0.15},
+                "description": "Attuned to both planes, resists light and dark damage.",
+            },
+        }
+    }
+}
+
 
 def weighted_choice(weighted_dict):
     total = sum(weighted_dict.values())
@@ -356,20 +593,53 @@ def generate_weapon_loot(mob_type):
 
     base = BASE_WEAPONS[base_name]
     name = base_name
-    damage = base["damage"]
+    damages = [base["damage"]]
     attack = base["attack"]
     gold = base["value"]
     if rarity:
-        name = f"{rarity} {name}"
-        damage += RARITY_BONUS[rarity]
-        attack += RARITY_BONUS[rarity]
-        gold *= RARITY_BONUS[rarity] or 1
+        choice = None
+        for i in range(RARITY_BONUS[rarity]):
+            if rarity in ["rare","epic","legendary"]:
+                if random.uniform(0, 1) > 0.2:
+                    choice = random.choice(ITEM_MODIFIERS["weapons"]["single"])
+            elif rarity == "epic":
+                if choice:
+                    choice = random.choice(ITEM_MODIFIERS["weapons"]["double"])
+                elif random.uniform(0, 1) > 0.2:
+                    choice = random.choice(ITEM_MODIFIERS["weapons"]["double"])
+            elif rarity in ["legendary"]:
+                if choice:
+                    choice = random.choice(ITEM_MODIFIERS["weapons"]["double"])
+                elif random.uniform(0, 1) > 0.5:
+                    choice = random.choice(ITEM_MODIFIERS["weapons"]["double"])
+            if not choice:
+                damages[0].damage += 1
+                attack += 1
+                gold += random.randint(1, 5)
+        if choice:
+            name = f"{rarity} {str(choice.keys())} {name}"
+            for e_type,damage in choice["damage_bonus"].items():
+                new_element = Elements(e_type, damage)
+                for element in damages:
+                    damages.remove(element)
+                    if element == new_element:
+                        element += new_element
+                        element = list(element)
+                        damages.extend(element)
+                        break
+                    else:
+                        element += new_element ### this needs to be continued
+
+        else:
+            name = f"{rarity} {name}"
+
     if quality_name:
         name = f"{quality_name} {name}"
         quality = WEAPON_QUALITIES[quality_name]
-        damage += quality["damage_mod"]
+        damage.damage += quality["damage_mod"]
         attack += quality["attack_mod"]
         gold *= quality["gold_mod"]
+        weapon = Weapon(name,)
     return Weapon(name, gold, damage, attack)
 
 
@@ -444,8 +714,13 @@ def generate_enemy(level=1):
 
     def make_entity(name, health, base_name):
         if base_name in UNDEAD:
-            return Entity(name, health, generate_armor_loot(base_name), generate_weapon_loot(base_name), random.randint(3, 8))
-        return Entity(name, health, generate_armor_loot(base_name), generate_weapon_loot(base_name))
+            enemy = Entity(name, health, generate_armor_loot(base_name), generate_weapon_loot(base_name))
+        else:
+            enemy = Entity(name, health, generate_armor_loot(base_name), generate_weapon_loot(base_name))
+        for stats in list(ENEMYS[base_name].keys())[1:]:
+            enemy.stats[stats] = ENEMYS[base_name][stats]
+
+        return enemy
 
     if rarity and level >= RARE_LEVEL_THRESHOLD[base_name]:
         enemy = make_entity(
@@ -456,6 +731,8 @@ def generate_enemy(level=1):
         while i <= RARITY_BONUS[rarity]:
             if random.uniform(0, 1) <= level * 0.1:
                 enemy.add_to_inventory(generate_items_loot(base_name))
+            for stat in list(ENEMYS[base_name].keys())[1:]:
+                enemy.stats[stat] += random.randint(0,RARITY_BONUS[rarity])
             enemy.gold += random.randint(1, 9) + ENEMYS[base_name]["gold"]
             i += 1
         return enemy

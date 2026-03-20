@@ -23,6 +23,35 @@ USED_KEYS =["<Shift-KeyPress-Up>",
             "j",
             "i",
 ]
+def stat_set(player):
+    stat_points = 25
+    stats = {"attack": 0,  "defence": 0, "luck": 0, "magic_defence": 0,  "magic_attack": 0,  "agility": 0}
+    while stat_points >= 0:
+        for stat in list(stats.keys()):
+            try:
+                change = min(int(input(f"allocate {stat_points}, {stat}: {stats[stat]} ")),stat_points)
+            except ValueError:
+                print("enter an integer")
+                break
+            if change < 0:
+                print("enter a positive integer")
+                break
+            stat_points -= change
+            stats[stat] += change
+            print(f"{stat}: {stats[stat]}\npoints remaining: {stat_points}")
+        if stat_points == 0:
+            answer = input(f"{stats} does this look right?\n       (Y)(N)").lower().strip()
+            if answer == "y":
+                for stat in list(stats.keys()):
+                    player.stats[stat] = stats[stat]
+                return
+            elif answer == "n":
+                stat_points = 25
+                for stat in list(stats.keys()):
+                    stats[stat] = 0
+            else:
+                print("please enter either 'y' or 'n'")
+
 def weapon_choice():
     while True:
         try:

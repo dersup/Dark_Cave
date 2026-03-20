@@ -2,7 +2,6 @@ import random
 import re
 from classes import *
 
-
 INSPECT_WHITELIST = {
 	"Entity": ["name", "health", "max_health", "armor", "weapon", "damage_resistance"],
 	"item": ["name", "damage"],
@@ -36,22 +35,34 @@ def next_cell(row, col, direction):
 
 
 class Entity:
-	def __init__(self, name, max_health, armor_=Armour(), weapon_=Weapon(), damage_resistance=0):
+	def __init__(self, name, max_health, armor_=Armour(), weapon_=Weapon()):
 		self.name = name
 		self.max_health = max_health
 		self.health = max_health
-		self.damage_resistance = damage_resistance
-		self.attack = 0
-		self.defence = 0
-		self.luck = 0
-		self.magic_defence = 0
-		self.magic_attack = 0
-		self.agility = 0
-		self.experience = 0
-
+		self.stats = {
+			"attack": 0,
+			"defence": 0,
+			"luck": 0,
+			"magic_defence": 0,
+			"magic_attack": 0,
+			"agility": 0,
+			"exp":0
+		}
+		self.resistances = {
+			"fire": 0.00,
+			"ice": 0.00,
+			"lightning": 0.00,
+			"water": 0.00,
+			"earth": 0.00,
+			"wind": 0.00,
+			"light": 0.00,
+			"dark": 0.00,
+			"poison": 0.00,
+			"physical": 0.00,
+		}
+		self.level = 1
 		self.armor = None
 		self.weapon = None
-
 		self.inventory = Inventory()
 		self.gold = 0
 		self.kills = 0
@@ -78,12 +89,24 @@ class Entity:
 			return total
 
 	def attack_target(self, enemy, weapon_,maze):
+		def killed(attacker,dead):
+			attacker.kills += 1
+			attacker.stats["exp"] += dead.stats["exp"]
+			enemy.give_inventory(maze.cells[enemy.location.location[0]][enemy.location.location[1]])
+			def level_check():
+				if attacker.stats["exp"] >= 75 * attacker.level:
+					attacker.stats["exp"] = 0
+					attacker.level += 1
+					maze.level_up(attacker)
+			level_check()
+
 		if not weapon_:
 			print("You have no weapon.")
 			return
 		dam_taken = 0
 
 		roll = random.randint(1, 20)
+		roll += int(self.stats["luck"]*0.2)
 		if isinstance(weapon_, Throwing):
 			if "bomb" in weapon_.name:
 				if roll > 10:
@@ -93,12 +116,12 @@ class Entity:
 		else:
 			attack_total = roll + weapon_.attack
 
-			enemy_ac = 10
+			enemy_ac = 10 + enemy.stats["defence"]
 			if enemy.armor:
 				enemy_ac += enemy.armor.AC
 
 			if attack_total >= enemy_ac:
-				damage = weapon_.damage + random.randint(1, 6)
+				damage = weapon_.damage + self.stats["attack"] + random.randint(1, 10)
 				dam_taken = enemy.take_damage(damage)
 			else:
 				print(f"{self.name} misses {enemy.name}.")
@@ -107,6 +130,7 @@ class Entity:
 			print(f"{self.name} hits {enemy.name} with {weapon_.name} for {dam_taken} damage!")
 			if enemy.health <= 0:
 				self.kills += 1
+				killed(self,enemy)
 				self.give_inventory(maze.cells[self.location.location[0]][self.location.location[1]])
 		else:
 			print(f"{enemy.name} took no damage")
