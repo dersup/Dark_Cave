@@ -43,7 +43,7 @@ class Windows:
     def draw_line(self, line, colour):
         line.draw(self.canvas, colour, self.offset_x, self.offset_y)
 
-    def draw_circle(self, point, radius, fill:str, outline:str, tag="world"):
+    def draw_circle(self, point, radius, fill:str, outline="", tag="world"):
         x, y = point.x + self.offset_x, point.y + self.offset_y
         id_ = self.canvas.create_oval(
             x - radius, y - radius,
@@ -154,7 +154,7 @@ class Windows:
             print(f"{item_name} increased you have {total_points} points remaining")
             player.stats[item_name] += 1
         self.bind_key("<Up>", lambda e: increment(-1))
-        self.bind_key("<Down>", lambda e: increment(-1))
+        self.bind_key("<Down>", lambda e: increment(1))
         self.bind_key("<Enter>", lambda e: get_item())
         self.bind_key("<w>", lambda e: increment(-1))
         self.bind_key("<s>", lambda e: increment(1))

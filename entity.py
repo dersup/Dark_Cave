@@ -78,15 +78,13 @@ class Entity:
 	# Combat
 	# ------------------------
 
-	def take_damage(self, amount, bypass_dr=False):
-		total = amount
-		if not bypass_dr:
-			total -= self.damage_resistance
-		if total <= 0:
-			return 0
-		else:
-			self.health -= total
-			return total
+	def take_damage(self, elements:list)-> dict:
+		total = {}
+		for element in elements:
+			damage = element.damage - (element.damage * self.resistances[element.type])
+			self.health -= damage
+			total[element.type] = damage
+		return total
 
 	def attack_target(self, enemy, weapon_,maze):
 		def killed(attacker,dead):
@@ -103,22 +101,22 @@ class Entity:
 		if not weapon_:
 			print("You have no weapon.")
 			return
-		dam_taken = 0
+		dam_taken = {}
 
 		roll = random.randint(1, 20)
 		roll += int(self.stats["luck"]*0.2)
 		if isinstance(weapon_, Throwing):
 			if "bomb" in weapon_.name:
 				if roll > 10:
-					dam_taken = enemy.take_damage(weapon_.damage, bypass_dr=True)
+					dam_taken = enemy.take_damage(weapon_.elements)
 				else:
-					dam_taken = enemy.take_damage(weapon_.damage // 2, bypass_dr=True)
+					for element in weapon_.elements:
+						element.damage = element.damage // 2
+					dam_taken = enemy.take_damage(weapon_.elements)
 		else:
 			attack_total = roll + weapon_.attack
 
 			enemy_ac = 10 + enemy.stats["defence"]
-			if enemy.armor:
-				enemy_ac += enemy.armor.AC
 
 			if attack_total >= enemy_ac:
 				damage = weapon_.damage + self.stats["attack"] + random.randint(1, 10)
@@ -127,11 +125,21 @@ class Entity:
 				print(f"{self.name} misses {enemy.name}.")
 				return
 		if dam_taken:
-			print(f"{self.name} hits {enemy.name} with {weapon_.name} for {dam_taken} damage!")
+			print(f"{self.name} hits {enemy.name} with {weapon_.name} for ",end='')
+			for ele,dam in dam_taken.items():
+				if len(list(dam_taken.keys())) >= 3:
+					if ele == list(dam_taken.keys())[-1]:
+						print(f"and {dam} {ele}")
+						break
+					else:
+						print(f"{dam} {ele}",end=",")
+						continue
+				elif len(list(dam_taken.keys())) == 2:
+					if ele == list(dam_taken.keys())[0]:
+						print(f"{dam} {ele}",end=" and ")
+				print(f"{dam} {ele}")
 			if enemy.health <= 0:
-				self.kills += 1
 				killed(self,enemy)
-				self.give_inventory(maze.cells[self.location.location[0]][self.location.location[1]])
 		else:
 			print(f"{enemy.name} took no damage")
 
@@ -238,6 +246,8 @@ class Entity:
 				return
 			else:
 				self.inventory.items["Equipped"].append(weapon_)
+				for stat,val_1 in weapon_.stat_bonuses.items():
+					self.stats[stat] += val_1
 				self.weapon = weapon_
 				self.remove_item(weapon_)
 		else:
@@ -250,12 +260,16 @@ class Entity:
 				if isinstance(items, Weapon):
 					self.add_to_inventory(items)
 					self.inventory.items["Equipped"].remove(items)
+					for stat, val_1 in items.stat_bonuses.items():
+						self.stats[stat] -= val_1
 					self.equip_weapon(Weapon())
 				return
 			for item in items:
 				if isinstance(item, Weapon):
 					self.add_to_inventory(item)
 					self.inventory.items["Equipped"].remove(item)
+					for stat, val_1 in item.stat_bonuses.items():
+						self.stats[stat] -= val_1
 					self.equip_weapon(Weapon())
 					return
 
@@ -266,12 +280,18 @@ class Entity:
 				if isinstance(items, Armour):
 					self.add_to_inventory(items)
 					self.inventory.items["Equipped"].remove(items)
+					for (stat, val_1), (resist, val_2) in zip(items.stat_bonuses.items(),items.resistances.items()):
+						self.stats[stat] -= val_1
+						self.resistances[resist] -= val_2
 					self.equip_armor(Armour())
 				return
 			for item in items:
 				if isinstance(item, Armour):
 					self.add_to_inventory(item)
 					self.inventory.items["Equipped"].remove(item)
+					for (stat, val_1), (resist, val_2) in zip(items.stat_bonuses.items(),items.resistances.items()):
+						self.stats[stat] -= val_1
+						self.resistances[resist] -= val_2
 					self.equip_armor(Armour())
 					return
 
@@ -282,6 +302,9 @@ class Entity:
 				return
 			else:
 				self.inventory.items["Equipped"].append(armor_)
+				for (stat, val_1), (resist, val_2) in zip(armor_.stat_bonuses.items(),armor_.resistances.items()):
+					self.stats[stat] += val_1
+					self.resistances[resist] += val_2
 				self.armor = armor_
 				self.remove_item(armor_)
 		else:
@@ -316,10 +339,14 @@ class Entity:
 						maze.cells[row_old][col_old].right = False
 						maze.cells[row][col].left = False
 					if curr_cell == self.location:
-						self.take_damage(item.damage * 0.5, bypass_dr=True)
+						for element in item.elements:
+							element.damage *= 0.5
+						self.take_damage(item.elements)
 					other_side = maze.cells[row][col]
 					if other_side.enemy_entity:
-						other_side.enemy_entity.take_damage(item.damage * 0.5, bypass_dr=True)
+						for element in item.elements:
+							element.damage *= 0.5
+						other_side.enemy_entity.take_damage(item.elements)
 					print("the wall collapses!")
 					return
 			row_old += 1

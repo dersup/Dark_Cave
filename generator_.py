@@ -1,4 +1,3 @@
-from classes import Elements
 from entity import *
 
 ENEMIES = {
@@ -331,6 +330,15 @@ QUALITY_WEIGHT = {
         }
     },
 }
+RARE_LEVEL_THRESHOLD = {
+        "goblin":    3,
+        "orc":       5,
+        "skeleton":  7,
+        "troll":     6,
+        "wraith":    8,
+        "dark mage": 8,
+        "vampire":   9,
+    }
 RARITY = {
     "": 98.498,
     "rare": 1,
@@ -380,8 +388,8 @@ ARMOR_QUALITIES = {
 }
 
 BASE_ITEMS = {
-    "Healing Potion":{"damage":20,"value":120},
-    "Bomb": {"damage":30,"attack":-1,"value":200,"distance":3},
+    "Healing Potion":{"damage":{"healing":20},"value":120},
+    "Bomb": {"damage":{"fire":30},"attack":-1,"value":200,"distance":3},
 }
 
 
@@ -464,7 +472,7 @@ ITEM_MODIFIERS = { "weapons": {
         },
     },
     # Dual-element weapons
-    "dual":{
+    "double":{
         "of_hellfire": {
             "type": "weapon",
             "damage_bonus": {"fire": 0.20, "dark": 0.20},
@@ -543,7 +551,7 @@ ITEM_MODIFIERS = { "weapons": {
             },
         },
     # Dual-element armor
-        "dual":{
+        "double":{
             "of_the_guardian": {
                 "type": "armor",
                 "resistance_bonus": {"fire": 0.15, "ice": 0.15},
@@ -603,25 +611,26 @@ def generate_weapon_loot(mob_type):
         for i in range(RARITY_BONUS[rarity]):
             if rarity in ["rare","epic","legendary"] and not choice in list(ITEM_MODIFIERS["weapons"]["double"]):
                 if random.uniform(0, 1) > 0.2:
-                    choice = random.choice(list(ITEM_MODIFIERS["weapons"]["single"]))
+                    choice = dict(random.choice(list(ITEM_MODIFIERS["weapons"]["single"])))
             elif rarity == "epic":
                 if choice:
-                    choice = random.choice(list(ITEM_MODIFIERS["weapons"]["double"]))
+                    choice = dict(random.choice(list(ITEM_MODIFIERS["weapons"]["double"])))
                 elif random.uniform(0, 1) > 0.2:
-                    choice = random.choice(list(ITEM_MODIFIERS["weapons"]["double"]))
+                    choice = dict(random.choice(list(ITEM_MODIFIERS["weapons"]["double"])))
             elif rarity in ["legendary"]:
                 if choice:
-                    choice = random.choice(list(ITEM_MODIFIERS["weapons"]["double"]))
+                    choice = dict(random.choice(list(ITEM_MODIFIERS["weapons"]["double"])))
                 elif random.uniform(0, 1) > 0.5:
-                    choice = random.choice(list(ITEM_MODIFIERS["weapons"]["double"]))
+                    choice = dict(random.choice(list(ITEM_MODIFIERS["weapons"]["double"])))
             if not choice:
                 damages[0].damage += 1
                 attack += 1
                 stat_bonus += random.randint(0, 1)
                 gold += random.randint(20, 50)
             if choice:
-                for element_percent in choice["damage_bonus"].values():
-                    element_percent += random.uniform(0, 0.01)
+                for ele,percent in choice["damage_bonus"].items():
+                    percent += random.uniform(0, 0.01)
+                    choice["damage_bonus"][ele] = percent
                 attack += 1
                 gold += random.randint(100, 200)
 
@@ -668,27 +677,28 @@ def generate_armor_loot(mob_type,):
     choice = None
     if rarity:
         for i in range(RARITY_BONUS[rarity]):
-            if rarity in ["rare", "epic", "legendary"] and not choice in list(ITEM_MODIFIERS["armor"]["double"]):
+            if rarity in ["rare", "epic", "legendary"] and not choice in list(ITEM_MODIFIERS["armour"]["double"]):
                 if random.uniform(0, 1) > 0.2:
-                    choice = random.choice(list(ITEM_MODIFIERS["armor"]["single"]))
+                    choice = dict(random.choice(list(ITEM_MODIFIERS["armour"]["single"])))
             elif rarity == "epic":
                 if choice:
-                    choice = random.choice(list(ITEM_MODIFIERS["armor"]["double"]))
+                    choice = dict(random.choice(list(ITEM_MODIFIERS["armour"]["double"])))
                 elif random.uniform(0, 1) > 0.2:
-                    choice = random.choice(list(ITEM_MODIFIERS["armor"]["double"]))
+                    choice = dict(random.choice(list(ITEM_MODIFIERS["armour"]["double"])))
             elif rarity in ["legendary"]:
                 if choice:
-                    choice = random.choice(list(ITEM_MODIFIERS["armor"]["double"]))
+                    choice = dict(random.choice(list(ITEM_MODIFIERS["armour"]["double"])))
                 elif random.uniform(0, 1) > 0.5:
-                    choice = random.choice(list(ITEM_MODIFIERS["armor"]["double"]))
+                    choice = dict(random.choice(list(ITEM_MODIFIERS["armour"]["double"])))
             if not choice:
                 ac += 1
                 stat_bonus += random.randint(1, 2)
                 gold += random.randint(20, 50)
             if choice:
-                resistances = choice["resistance_bonus"]
-                for amount in resistances.values():
+                for resistance, amount in choice["resistance_bonus"].items():
                     amount += random.uniform(0, 0.01)
+                    choice["resistance_bonus"][resistance] = amount
+
                 gold += random.randint(100, 200)
 
 
@@ -698,16 +708,18 @@ def generate_armor_loot(mob_type,):
         name = f"{quality_name} {name}"
         ac *= ARMOR_QUALITIES[quality_name]["mod"]
         gold *= ARMOR_QUALITIES[quality_name]["gold_mod"]
-    armour = Armour(name,gold,ac)
+    armour = Armour(name, gold)
     if choice:
         for e_type, resist in choice["resistance_bonus"].items():
             armour.resistances[e_type] += resist
+        description += f"{description}\n{choice['description']}"
     if stat_bonus:
         while stat_bonus:
             stat = random.choice(list(armour.stat_bonuses.keys()))
             armour.stat_bonuses[stat] += 1
             stat_bonus -= 1
-
+    armour.stat_bonuses["defence"] = ac
+    armour.description = description
     return armour
 
 
@@ -728,68 +740,50 @@ def generate_items_loot(mob_type):
         attack = base["attack"]
     if quality_name:
         name = f"{quality_name} {name}"
-        damage *= ITEM_QUALITY[quality_name]["mod"]
+        for e_type,value in damage.items():
+            value *= ITEM_QUALITY[quality_name]["mod"]
+            damage[e_type] = value
         gold *= ITEM_QUALITY[quality_name]["gold_mod"]
         if not "Healing" in base_name:
             attack += ITEM_QUALITY[quality_name]["mod"]
     if "Healing" in base_name:
-        return Healing(name,damage,gold)
+        return Healing(name,Elements(damage.keys(),damage.values()),gold)
     distance = base["distance"]
 
-    return Throwing(name, distance, gold, attack, damage)
+    return Throwing(name, distance, gold, [Elements(damage.keys(),damage.values())],attack)
 
 
 def generate_enemy(level=1):
     base_name = weighted_choice(ENEMIES_WEIGHT[str(level)])
     rarity = weighted_choice(RARITY)
     i = 1
-    enemy = None
 
-    # Enemies that have a damage reduction stat (undead)
-    UNDEAD = {"skeleton", "wraith", "vampire"}
-
-    # Minimum level required for a rare variant of each enemy to spawn
-    RARE_LEVEL_THRESHOLD = {
-        "goblin":    3,
-        "orc":       5,
-        "skeleton":  7,
-        "troll":     6,
-        "wraith":    8,
-        "dark mage": 8,
-        "vampire":   9,
-    }
-
-    def make_entity(name, health, base_name):
-        if base_name in UNDEAD:
-            enemy = Entity(name, health, generate_armor_loot(base_name), generate_weapon_loot(base_name))
-        else:
-            enemy = Entity(name, health, generate_armor_loot(base_name), generate_weapon_loot(base_name))
-        for stats in list(ENEMIES[base_name].keys())[1:]:
-            enemy.stats[stats] = ENEMIES[base_name][stats]
-
-        return enemy
+    def make_entity(name, health, base_name_):
+        enemy_ = Entity(name, health, generate_armor_loot(base_name_), generate_weapon_loot(base_name_))
+        for stats in list(ENEMIES[base_name_].keys())[1:-1]:
+            enemy_.stats[stats] = ENEMIES[base_name_][stats]
+        for resist,val in ENEMIES[base_name_]["resistances"].items():
+            enemy_.resistances[resist] = val
+        return enemy_
 
     if rarity and level >= RARE_LEVEL_THRESHOLD[base_name]:
-        enemy = make_entity(
-            f"{rarity} {base_name}",
-            ENEMIES[base_name]["health"] * RARITY_BONUS[rarity],
-            base_name
-        )
+        enemy = make_entity(f"{rarity} {base_name}", ENEMIES[base_name]["stats"]["health"] * RARITY_BONUS[rarity],
+                            base_name)
         while i <= RARITY_BONUS[rarity]:
             if random.uniform(0, 1) <= level * 0.1:
                 enemy.add_to_inventory(generate_items_loot(base_name))
-            for stat in list(ENEMIES[base_name].keys())[1:]:
-                enemy.stats[stat] += random.randint(0,RARITY_BONUS[rarity])
-            enemy.gold += random.randint(1, 9) + ENEMIES[base_name]["gold"]
+            for stat in list(ENEMIES[base_name]["stats"].keys())[1:]:
+                enemy.stats[stat] += random.randint(0,3)
+            enemy.gold += random.randint(1, 9) + ENEMIES[base_name]["stats"]["gold"]
             i += 1
         return enemy
 
     else:
-        enemy = make_entity(base_name, ENEMIES[base_name]["health"], base_name)
+        enemy = make_entity(base_name, ENEMIES[base_name]["stats"]["health"], base_name)
 
     if random.uniform(0, 1) <= level * 0.1:
         enemy.add_to_inventory(generate_items_loot(base_name))
-    enemy.gold = ENEMIES[base_name]["gold"]
+    enemy.gold = ENEMIES[base_name]["stats"]["gold"]
     return enemy
 
 
@@ -816,10 +810,9 @@ def name_gen(gender=""):
         ]
     }
 
-    if gender is "non-binary" or gender is "":
+    if gender == "non-binary" or gender not in list(names.keys()):
         all_names = [name for group in names.values() for name in group]
         return random.choice(all_names)
-
     names_list = names[gender]
     names_list.extend(names["unisex"])
     return random.choice(names_list)

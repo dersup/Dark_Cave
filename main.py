@@ -69,7 +69,7 @@ def main():
     gender = input("what gender is your hero?\n(Male)(Female)(Non-Binary)\n").lower().strip
     name = input("What is the name of your hero?: ") or name_gen(gender)
     weapon_ = weapon_choice()
-    armour = Armour("leather jerkin", PLAYER_STARTING_GEAR["armor"]["leather jerkin"]["value"],PLAYER_STARTING_GEAR["armor"]["leather jerkin"]["AC"])
+    armour = Armour("leather jerkin", PLAYER_STARTING_GEAR["armor"]["leather jerkin"]["value"])
     player = Entity(name, 100, armour, weapon_)
     for i in range(2):
         player.add_to_inventory(generate_items_loot("player"))
@@ -78,6 +78,7 @@ def main():
     maze_ = Maze(30, 30, win)
     maze_.create_maze()
     maze_.player_init(player)
+    stat_set(player)
     win.center_on(player)
     maze_.monsters_init()
     maze_.update_visibility(player)
