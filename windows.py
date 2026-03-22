@@ -74,7 +74,7 @@ class Windows:
                 if not self.inventory_text.winfo_ismapped():
                     self.inventory_text.place(relx=0.5, rely=0.25,anchor="n")
                 if not self.info_label.winfo_ismapped():
-                    self.info_label.place(relx=0.7, rely=0.25,anchor="n")
+                    self.info_label.place(relx=0.7, rely=0.2,anchor="n")
                 self.inventory_formatted(str(player.inventory))
             else:
                 self.inventory_text.place_forget()
@@ -126,7 +126,7 @@ class Windows:
             self.unbind_key(key)
 
         self.bind_key("y",lambda e: maze.new_maze(player,0))
-        self.bind_key("n",self.__root.destroy())
+        self.bind_key("n",lambda e: self.__root.destroy())
         self.game_over_label.place(relx=0.5, rely=0.5)
         self.game_over_label.config(text=f"""
               SCORE: {player.gold * maze.level}

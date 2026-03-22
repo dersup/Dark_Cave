@@ -2,7 +2,7 @@ from entity import *
 
 ENEMIES = {
     "goblin": {"stats":{
-        "health": 20, "attack": 5, "defence": 10, "luck": 20,
+        "health": 20, "attack": 5, "defence": 5, "luck": 10,
         "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 10, "gold": 1
         },
         "resistances": {
@@ -354,12 +354,12 @@ RARITY_BONUS = {
 }
 
 BASE_WEAPONS = {
-    "dagger": {"damage": Elements("physical",2), "attack": 4, "value": 40, "description": "A small, easily concealed blade. Quick to draw and deadly in close quarters."},
-    "short sword": {"damage":  Elements("physical",3), "attack": 3, "value": 60, "description": "A versatile one-handed blade, well-balanced for both offense and defense."},
-    "long sword": {"damage":  Elements("physical",4), "attack": 2, "value": 80, "description": "A classic knightly weapon. Longer reach and heavier strikes, but slower to swing."},
-    "spear": {"damage":  Elements("physical",3), "attack": 2, "value": 100, "description": "A long-shafted weapon tipped with an iron point. Excellent for keeping enemies at distance."},
-    "club": {"damage":  Elements("physical",5), "attack": 1, "value": 50, "description": "A crude but effective bludgeon. Slow and graceless, but capable of bone-crushing blows."},
-    "axe": {"damage":  Elements("physical",6), "attack": 0, "value": 70, "description": "A heavy cleaving weapon. Devastating on impact, but leaves you wide open between swings."},
+    "dagger": {"damage": Elements("physical",5), "attack": 4, "value": 40, "description": "A small, easily concealed blade. Quick to draw and deadly in close quarters."},
+    "short sword": {"damage":  Elements("physical",10), "attack": 3, "value": 60, "description": "A versatile one-handed blade, well-balanced for both offense and defense."},
+    "long sword": {"damage":  Elements("physical",12), "attack": 2, "value": 80, "description": "A classic knightly weapon. Longer reach and heavier strikes, but slower to swing."},
+    "spear": {"damage":  Elements("physical",11), "attack": 2, "value": 100, "description": "A long-shafted weapon tipped with an iron point. Excellent for keeping enemies at distance."},
+    "club": {"damage":  Elements("physical",17), "attack": 1, "value": 50, "description": "A crude but effective bludgeon. Slow and graceless, but capable of bone-crushing blows."},
+    "axe": {"damage":  Elements("physical",20), "attack": 0, "value": 70, "description": "A heavy cleaving weapon. Devastating on impact, but leaves you wide open between swings."},
 }
 
 BASE_ARMOR = {
@@ -372,19 +372,19 @@ BASE_ARMOR = {
 }
 
 WEAPON_QUALITIES = {
-    "broken": {"damage_mod": -3, "attack_mod": -2, "gold_mod": 0.1},
-    "crude": {"damage_mod": -2, "attack_mod": -1, "gold_mod": 0.3},
-    "rusted": {"damage_mod": -1, "attack_mod": 0, "gold_mod": 0.6},
-    "reinforced": {"damage_mod": 2, "attack_mod": 1, "gold_mod": 1.5},
-    "masterwork": {"damage_mod": 3, "attack_mod": 2, "gold_mod": 2},
+    "broken": {"damage_mod": 0.3, "attack_mod": -2, "gold_mod": 0.1},
+    "crude": {"damage_mod": 0.5, "attack_mod": -1, "gold_mod": 0.3},
+    "rusted": {"damage_mod": 0.7, "attack_mod": 0, "gold_mod": 0.6},
+    "reinforced": {"damage_mod": 1.5, "attack_mod": 1, "gold_mod": 1.5},
+    "masterwork": {"damage_mod": 2, "attack_mod": 2, "gold_mod": 2},
 }
 
 ARMOR_QUALITIES = {
-    "destroyed": {"mod":-2,"gold_mod":0.1},
-    "worn": {"mod":-1,"gold_mod":0.5},
-    "sturdy": {"mod":1,"gold_mod":1.2},
-    "reinforced": {"mod":2,"gold_mod":1.5},
-    "masterwork": {"mod":3,"gold_mod":2}
+    "destroyed": {"mod":0.2,"gold_mod":0.1},
+    "worn": {"mod":0.7,"gold_mod":0.5},
+    "sturdy": {"mod":1.4,"gold_mod":1.2},
+    "reinforced": {"mod":1.7,"gold_mod":1.5},
+    "masterwork": {"mod":2,"gold_mod":2}
 }
 
 BASE_ITEMS = {
@@ -611,23 +611,28 @@ def generate_weapon_loot(mob_type):
         for i in range(RARITY_BONUS[rarity]):
             if rarity in ["rare","epic","legendary"] and not choice in list(ITEM_MODIFIERS["weapons"]["double"]):
                 if random.uniform(0, 1) > 0.2:
-                    choice = dict(random.choice(list(ITEM_MODIFIERS["weapons"]["single"])))
+                    choice = random.choice(list(ITEM_MODIFIERS["weapons"]["single"]))
+                    choice = ITEM_MODIFIERS["weapons"]["single"][choice]
             elif rarity == "epic":
                 if choice:
-                    choice = dict(random.choice(list(ITEM_MODIFIERS["weapons"]["double"])))
+                    choice = random.choice(list(ITEM_MODIFIERS["weapons"]["double"]))
+                    choice = ITEM_MODIFIERS["weapons"]["double"][choice]
                 elif random.uniform(0, 1) > 0.2:
-                    choice = dict(random.choice(list(ITEM_MODIFIERS["weapons"]["double"])))
+                    choice = random.choice(list(ITEM_MODIFIERS["weapons"]["double"]))
+                    choice = ITEM_MODIFIERS["weapons"]["double"][choice]
             elif rarity in ["legendary"]:
                 if choice:
-                    choice = dict(random.choice(list(ITEM_MODIFIERS["weapons"]["double"])))
+                    choice = random.choice(list(ITEM_MODIFIERS["weapons"]["double"]))
+                    choice = ITEM_MODIFIERS["weapons"]["double"][choice]
                 elif random.uniform(0, 1) > 0.5:
-                    choice = dict(random.choice(list(ITEM_MODIFIERS["weapons"]["double"])))
+                    choice = random.choice(list(ITEM_MODIFIERS["weapons"]["double"]))
+                    choice = ITEM_MODIFIERS["weapons"]["double"][choice]
             if not choice:
                 damages[0].damage += 1
                 attack += 1
                 stat_bonus += random.randint(0, 1)
                 gold += random.randint(20, 50)
-            if choice:
+            if choice and isinstance(choice, dict):
                 for ele,percent in choice["damage_bonus"].items():
                     percent += random.uniform(0, 0.01)
                     choice["damage_bonus"][ele] = percent
@@ -639,7 +644,7 @@ def generate_weapon_loot(mob_type):
             description = f"{description}\n{choice['description']}"
             for i in range(0,len(damages)):
                 for e_type, damage_percent in choice["damage_bonus"].items():
-                    new_element = Elements(e_type, damages[0]*damage_percent)
+                    new_element = Elements(e_type, damages[0].damage*damage_percent)
                     if damages[i] == new_element:
                         damages[i] += new_element
                         continue
@@ -651,7 +656,8 @@ def generate_weapon_loot(mob_type):
     if quality_name:
         name = f"{quality_name} {name}"
         quality = WEAPON_QUALITIES[quality_name]
-        damages[0].damage += quality["damage_mod"]
+        for i in range(0,len(damages)):
+            damages[i].damage = round(damages[i].damage * quality["damage_mod"])
         attack += quality["attack_mod"]
         gold *= quality["gold_mod"]
     weapon = Weapon(name, gold, attack, damages, description=description)
@@ -679,17 +685,22 @@ def generate_armor_loot(mob_type,):
         for i in range(RARITY_BONUS[rarity]):
             if rarity in ["rare", "epic", "legendary"] and not choice in list(ITEM_MODIFIERS["armour"]["double"]):
                 if random.uniform(0, 1) > 0.2:
-                    choice = dict(random.choice(list(ITEM_MODIFIERS["armour"]["single"])))
+                    choice = random.choice(list(ITEM_MODIFIERS["armour"]["single"]))
+                    choice = ITEM_MODIFIERS["armour"]["single"][choice]
             elif rarity == "epic":
                 if choice:
-                    choice = dict(random.choice(list(ITEM_MODIFIERS["armour"]["double"])))
+                    choice = random.choice(list(ITEM_MODIFIERS["armour"]["double"]))
+                    choice = ITEM_MODIFIERS["armour"]["double"][choice]
                 elif random.uniform(0, 1) > 0.2:
-                    choice = dict(random.choice(list(ITEM_MODIFIERS["armour"]["double"])))
+                    choice = random.choice(list(ITEM_MODIFIERS["armour"]["double"]))
+                    choice = ITEM_MODIFIERS["armour"]["double"][choice]
             elif rarity in ["legendary"]:
                 if choice:
-                    choice = dict(random.choice(list(ITEM_MODIFIERS["armour"]["double"])))
+                    choice = random.choice(list(ITEM_MODIFIERS["armour"]["double"]))
+                    choice = ITEM_MODIFIERS["armour"]["double"][choice]
                 elif random.uniform(0, 1) > 0.5:
-                    choice = dict(random.choice(list(ITEM_MODIFIERS["armour"]["double"])))
+                    choice = random.choice(list(ITEM_MODIFIERS["armour"]["double"]))
+                    choice = ITEM_MODIFIERS["armour"]["double"][choice]
             if not choice:
                 ac += 1
                 stat_bonus += random.randint(1, 2)
@@ -706,7 +717,7 @@ def generate_armor_loot(mob_type,):
             name = f"{rarity} {name}"
     if quality_name:
         name = f"{quality_name} {name}"
-        ac *= ARMOR_QUALITIES[quality_name]["mod"]
+        ac = round(ac * ARMOR_QUALITIES[quality_name]["mod"])
         gold *= ARMOR_QUALITIES[quality_name]["gold_mod"]
     armour = Armour(name, gold)
     if choice:
@@ -736,6 +747,7 @@ def generate_items_loot(mob_type):
     name = base_name
     gold = base["value"]
     attack = 0
+    elements = []
     if not "Healing" in base_name:
         attack = base["attack"]
     if quality_name:
@@ -747,10 +759,14 @@ def generate_items_loot(mob_type):
         if not "Healing" in base_name:
             attack += ITEM_QUALITY[quality_name]["mod"]
     if "Healing" in base_name:
-        return Healing(name,Elements(damage.keys(),damage.values()),gold)
+        for key, value in damage.items():
+            elements.append(Elements(key, value))
+        return Healing(name,elements,gold)
     distance = base["distance"]
+    for key,value in damage.items():
+        elements.append(Elements(key,value))
 
-    return Throwing(name, distance, gold, [Elements(damage.keys(),damage.values())],attack)
+    return Throwing(name, distance, gold, elements,attack)
 
 
 def generate_enemy(level=1):

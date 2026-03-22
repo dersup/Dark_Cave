@@ -78,12 +78,18 @@ class Entity:
 	# Combat
 	# ------------------------
 
-	def take_damage(self, elements:list)-> dict:
+	def take_damage(self, elements:list,extra_dam=0,mod=1.0)-> dict:
 		total = {}
+		damage = random.randint(1,6)
 		for element in elements:
-			damage = element.damage - (element.damage * self.resistances[element.type])
-			self.health -= damage
+			if element == elements[0]:
+				damage = extra_dam
+			damage = max((damage + element.damage) - (damage + element.damage * self.resistances[element.type]),0)
+			damage = mod * damage
 			total[element.type] = damage
+			self.health -= damage
+			if self.health <= 0:
+				break
 		return total
 
 	def attack_target(self, enemy, weapon_,maze):
@@ -110,17 +116,14 @@ class Entity:
 				if roll > 10:
 					dam_taken = enemy.take_damage(weapon_.elements)
 				else:
-					for element in weapon_.elements:
-						element.damage = element.damage // 2
-					dam_taken = enemy.take_damage(weapon_.elements)
+					dam_taken = enemy.take_damage(weapon_.elements,0.5)
 		else:
 			attack_total = roll + weapon_.attack
 
 			enemy_ac = 10 + enemy.stats["defence"]
 
 			if attack_total >= enemy_ac:
-				damage = weapon_.damage + self.stats["attack"] + random.randint(1, 10)
-				dam_taken = enemy.take_damage(damage)
+				dam_taken = enemy.take_damage(weapon_.elements,extra_dam=self.stats["attack"])
 			else:
 				print(f"{self.name} misses {enemy.name}.")
 				return
@@ -132,12 +135,12 @@ class Entity:
 						print(f"and {dam} {ele}")
 						break
 					else:
-						print(f"{dam} {ele}",end=",")
+						print(f"{dam} {ele} damage",end=",")
 						continue
 				elif len(list(dam_taken.keys())) == 2:
 					if ele == list(dam_taken.keys())[0]:
 						print(f"{dam} {ele}",end=" and ")
-				print(f"{dam} {ele}")
+				print(f"{dam} {ele} damage")
 			if enemy.health <= 0:
 				killed(self,enemy)
 		else:
@@ -161,14 +164,12 @@ class Entity:
 			print("item not in inventory")
 
 	def add_to_inventory(self, item_):
-		if isinstance(item_, Weapon):
-			self.inventory.items["Weapons"].append(item_)
-		elif isinstance(item_, Armour):
-			self.inventory.items["Armors"].append(item_)
-		elif isinstance(item_, Item):
-			self.inventory.items["Consumables"].append(item_)
-		else:
+		key = "Weapons" if isinstance(item_, Weapon) else "Armors" if isinstance(item_, Armour) else "Consumables"
+		if not key:
 			print(f"not able to put {item_} in inventory")
+			return
+		else:
+			self.inventory.items[key].append(item_)
 
 	def add_items_to_inventory(self, items):
 		if len(items) == 1:
@@ -220,7 +221,7 @@ class Entity:
 				if match:
 					if isinstance(item_, Healing):
 						if "healing potion" in item_.name.lower():
-							self.health = min(self.max_health, self.health + item_.healing)
+							self.health = min(self.max_health, self.health + item_.healing[0])
 							print(f"{self.name} heals to {self.health}/{self.max_health}")
 					elif isinstance(item_, Throwing):
 						if "bomb" in item_.name.lower():
@@ -277,19 +278,12 @@ class Entity:
 		equipped = self.inventory.items["Equipped"]
 		for items in equipped:
 			if not isinstance(items, list):
-				if isinstance(items, Armour):
-					self.add_to_inventory(items)
-					self.inventory.items["Equipped"].remove(items)
-					for (stat, val_1), (resist, val_2) in zip(items.stat_bonuses.items(),items.resistances.items()):
-						self.stats[stat] -= val_1
-						self.resistances[resist] -= val_2
-					self.equip_armor(Armour())
-				return
+				items = [items]
 			for item in items:
 				if isinstance(item, Armour):
 					self.add_to_inventory(item)
 					self.inventory.items["Equipped"].remove(item)
-					for (stat, val_1), (resist, val_2) in zip(items.stat_bonuses.items(),items.resistances.items()):
+					for (stat, val_1), (resist, val_2) in zip(item.stat_bonuses.items(),item.resistances.items()):
 						self.stats[stat] -= val_1
 						self.resistances[resist] -= val_2
 					self.equip_armor(Armour())
@@ -361,7 +355,10 @@ class Entity:
 	# ------------------------
 
 	def move(self, direction, maze, on_complete=None):
-
+		if not direction:
+			if on_complete:
+				on_complete()
+			return
 		row_old, col_old = self.location.location
 		row, col = next_cell(row_old, col_old, direction)
 		movement = maze.cells[row_old][col_old].can_move(direction, maze)
@@ -374,7 +371,7 @@ class Entity:
 		elif movement != "move":
 			print(movement)
 			if "continue" in movement:
-				maze.new_maze()
+				maze.new_maze(self)
 			if on_complete:
 				on_complete()
 			return

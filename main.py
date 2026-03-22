@@ -24,33 +24,33 @@ USED_KEYS =["<Shift-KeyPress-Up>",
             "i",
 ]
 def stat_set(player):
-    stat_points = 25
+    stat_points = {"num": 25}
     stats = {"attack": 0,  "defence": 0, "luck": 0, "magic_defence": 0,  "magic_attack": 0,  "agility": 0}
-    while stat_points >= 0:
+    while stat_points["num"] >= 0:
         for stat in list(stats.keys()):
             try:
-                change = min(int(input(f"allocate {stat_points}, {stat}: {stats[stat]} ")),stat_points)
+                change = min(int(input(f"allocate {stat_points["num"]}, {stat}: {stats[stat]} ")),stat_points["num"])
             except ValueError:
                 print("enter an integer")
                 break
             if change < 0:
                 print("enter a positive integer")
                 break
-            stat_points -= change
+            stat_points["num"] -= change
             stats[stat] += change
-            print(f"{stat}: {stats[stat]}\npoints remaining: {stat_points}")
-        if stat_points == 0:
-            answer = input(f"{stats} does this look right?\n       (Y)(N)").lower().strip()
-            if answer == "y":
-                for stat in list(stats.keys()):
-                    player.stats[stat] = stats[stat]
-                return
-            elif answer == "n":
-                stat_points = 25
-                for stat in list(stats.keys()):
-                    stats[stat] = 0
-            else:
-                print("please enter either 'y' or 'n'")
+            print(f"{stat}: {stats[stat]}\npoints remaining: {stat_points["num"]}")
+            if stat_points["num"] == 0:
+                character = input(f"{stats} does this look right?\n       (Y)(N)")
+                if character == "y":
+                    for stat_ in list(stats.keys()):
+                        player.stats[stat_] = stats[stat_]
+                    return
+                elif character == "n":
+                    stat_points["num"] = 25
+                    for stat_ in list(stats.keys()):
+                        stats[stat_] = 0
+                else:
+                    print("please enter either 'y' or 'n'")
 
 def weapon_choice():
     while True:
@@ -62,15 +62,16 @@ def weapon_choice():
         except (KeyError, ValueError):
             print("that weapon does not exist. try again.")
             continue
-        return Weapon(name, weapon_pick["value"], weapon_pick["attack"], weapon_pick["damage"])
+        return Weapon(name, weapon_pick["value"], weapon_pick["attack"], [weapon_pick["damage"]])
 
 
 def main():
-    gender = input("what gender is your hero?\n(Male)(Female)(Non-Binary)\n").lower().strip
+    gender = input("what gender is your hero?\n(Male)(Female)(Non-Binary)\n").lower().strip()
     name = input("What is the name of your hero?: ") or name_gen(gender)
     weapon_ = weapon_choice()
     armour = Armour("leather jerkin", PLAYER_STARTING_GEAR["armor"]["leather jerkin"]["value"])
     player = Entity(name, 100, armour, weapon_)
+    stat_set(player)
     for i in range(2):
         player.add_to_inventory(generate_items_loot("player"))
 
@@ -78,27 +79,20 @@ def main():
     maze_ = Maze(30, 30, win)
     maze_.create_maze()
     maze_.player_init(player)
-    stat_set(player)
     win.center_on(player)
     maze_.monsters_init()
     maze_.update_visibility(player)
     win.player_labels(player)
-
-    state = {"moving": False}
-    inv_state = {"num": 2, "looking": False}
+    inv_state = {"num": 2}
 
     def game_over():
         win.clear()
         win.GAME_OVER(player, maze_)
 
     def on_move(direction):
-        if state["moving"]:
-            return  # ignore input during animation
         if player.health <= 0:
             game_over()
             return
-
-        state["moving"] = True  # lock input
         maze_.update_visibility(player)
         old_cell = player.location
 
@@ -110,9 +104,8 @@ def main():
                 cell.draw(maze_)
             do_enemy_turn()
             redraw_all()
-            state["moving"] = False  #unlock input
 
-        player.move(direction, maze_, on_complete=after_player_moves)
+        win.canvas.after(50,player.move(direction, maze_, on_complete=after_player_moves))
 
     def do_enemy_turn():
         for row in maze_.cells:
@@ -138,18 +131,19 @@ def main():
 
     def on_use_item():
         inv_state["num"] = 2
-        inv_state["looking"] = True  # flag that inventory_keys loop is active
 
         def get_item():
             item_name = win.highlight_line(inv_state["num"], player)
             print(f"using{item_name}")
             player.use_item(item_name.strip(), maze_)
             win.inventory_formatted(str(player.inventory))
+            on_show_inv()
+            game_keys()
             do_enemy_turn()
 
         def increment(change):
             new_val = inv_state["num"] + change
-            if 1 < new_val < player.inventory.length() + 7:
+            if 1 < new_val:
                 next_text = win.inventory_text.get(f"{new_val}.0", f"{new_val}.end")
                 if next_text in list(player.inventory.items.keys())[1:] or next_text == "-------------":
                     inv_state["num"] = new_val + change * 2
@@ -159,22 +153,20 @@ def main():
                 win.inventory_formatted(str(player.inventory))
 
         def inventory_keys():
-            if not inv_state["looking"]:
-                for key in USED_KEYS:
-                    win.unbind_key(key)
-                game_keys()
-                return
-            win.bind_key("<Up>",lambda e:increment(-1))
-            win.bind_key("<Down>",lambda e:increment(-1))
-            win.bind_key("<Enter>",lambda e:get_item())
-            win.bind_key("<w>",lambda e:increment(-1))
-            win.bind_key("<s>",lambda e:increment(1))
-            win.bind_key("<e>", lambda e: get_item())
+            # unbind before rebinding to avoid stale triggers
+            for key in USED_KEYS:
+                win.unbind_key(key)
+            win.bind_key("<Up>", lambda e: increment(-1))
+            win.bind_key("<Down>", lambda e: increment(1))
+            win.bind_key("<Enter>", lambda e: get_item())
+            win.bind_key("w", lambda e: increment(-1))
+            win.bind_key("s", lambda e: increment(1))
+            win.bind_key("e", lambda e: get_item())
+            win.bind_key("i", lambda e: on_show_inv())
 
-        inventory_keys()
+        win.canvas.after(50, inventory_keys)
 
     def on_show_inv():
-        inv_state["looking"] = False  # kill any running inventory_keys loop
         player.show_inventory(win)
         if win.inventory_show:
             on_use_item()
@@ -195,6 +187,8 @@ def main():
         player.facing = direction
 
     def game_keys():
+        for key in USED_KEYS:
+            win.unbind_key(key)
         # Turning
         win.bind_key("<Shift-KeyPress-Up>", lambda e: turn("up"))
         win.bind_key("<Shift-KeyPress-Down>", lambda e: turn("down"))
@@ -220,7 +214,7 @@ def main():
         win.bind_key("e", lambda e: pickup())
         win.bind_key("j", lambda e: inspect_cell())
         win.bind_key("i", lambda e: on_show_inv())
-
+    on_move("")
     game_keys()
     redraw_all()
     win.wait_for_close()
