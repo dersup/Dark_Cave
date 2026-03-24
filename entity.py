@@ -1,15 +1,7 @@
 import random
 import re
 from classes import *
-
-INSPECT_WHITELIST = {
-	"Entity": ["name", "health", "max_health", "armor", "weapon", "damage_resistance"],
-	"item": ["name", "damage"],
-	"weapon": ["name", "damage", "attack"],
-	"armor": ["name", "AC"],
-	"Cell": ["enemy_entity", "player_entity", "inventory"],
-	"Player": ["name", "health", "max_health", "armor", "weapon", "damage_resistance"],
-}
+from constants import *
 
 
 def inspect(target):
@@ -83,7 +75,7 @@ class Entity:
 		damage = random.randint(1,6)
 		for element in elements:
 			if element == elements[0]:
-				damage = extra_dam
+				damage += extra_dam
 			damage = max((damage + element.damage) - (damage + element.damage * self.resistances[element.type]),0)
 			damage = mod * damage
 			total[element.type] = damage
@@ -180,7 +172,7 @@ class Entity:
 				self.add_to_inventory(item)
 
 	def get_cell_inventory(self,target):
-		for category in target.inventory.items.keys():
+		for category in list(target.inventory.items.keys()):
 			if target.inventory.items[category] and category != "Equipped":
 				self.add_items_to_inventory(target.inventory.items[category])
 				print(f"adding{target.inventory.items[category]} to inventory")
@@ -221,8 +213,10 @@ class Entity:
 				if match:
 					if isinstance(item_, Healing):
 						if "healing potion" in item_.name.lower():
-							self.health = min(self.max_health, self.health + item_.healing[0])
+							self.health = min(self.max_health, self.health + item_.healing)
 							print(f"{self.name} heals to {self.health}/{self.max_health}")
+						self.remove_item(item_)
+						return
 					elif isinstance(item_, Throwing):
 						if "bomb" in item_.name.lower():
 							if not maze:
@@ -317,14 +311,14 @@ class Entity:
 				if curr_cell.enemy_entity:
 					self.attack_target(curr_cell.enemy_entity, item, maze)
 					return
-			if "Bomb" in item.name:
+			if "bomb" in item.name.lower():
 				row, col = next_cell(row_old, col_old, self.facing)
 				if curr_cell.can_move(self.facing, maze) == "bump":
 					if self.facing == "up":
 						maze.cells[row_old][col_old].top = False
 						maze.cells[row][col].bottom = False
 					if self.facing == "down":
-						maze.cells[row_old][col_old].bottem = False
+						maze.cells[row_old][col_old].bottom = False
 						maze.cells[row][col].top = False
 					if self.facing == "left":
 						maze.cells[row_old][col_old].left = False
@@ -343,8 +337,7 @@ class Entity:
 						other_side.enemy_entity.take_damage(item.elements)
 					print("the wall collapses!")
 					return
-			row_old += 1
-			col_old += 1
+			row_old, col_old = next_cell(row_old, col_old, self.facing)
 
 		print(f"{item.name} hits the ground")
 
@@ -404,6 +397,7 @@ class Entity:
 		if self.health <= 0:
 			self.give_inventory(maze.cells[my_row][my_col])
 			maze.cells[my_row][my_col].remove_enemy()
+			return
 
 		# If adjacent → attack
 		if abs(my_col - p_col) + abs(my_row - p_row) == 1:

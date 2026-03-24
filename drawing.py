@@ -1,7 +1,6 @@
 from classes import *
 import time
 
-
 class Point:
     def __init__(self, x=0, y=0):
         self.x = x
@@ -228,14 +227,12 @@ class Cell:
         step()
 
     def add_to_inventory(self, item_):
-        if isinstance(item_, Weapon):
-            self.inventory.items["Weapons"].append(item_)
-        elif isinstance(item_, Armour):
-            self.inventory.items["Armors"].append(item_)
-        elif isinstance(item_, Item):
-            self.inventory.items["Consumables"].append(item_)
-        else:
+        key = "Weapons" if isinstance(item_, Weapon) else "Armors" if isinstance(item_, Armour) else "Consumables"
+        if not key:
             print(f"not able to put {item_} in inventory")
+            return
+        else:
+            self.inventory.items[key].append(item_)
 
     def add_items_to_inventory(self, items):
         if len(items) == 1:

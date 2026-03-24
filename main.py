@@ -2,27 +2,7 @@ from windows import *
 from maze import *
 from generator_ import *
 
-USED_KEYS =["<Shift-KeyPress-Up>",
-            "<Shift-KeyPress-Down>",
-            "<Shift-KeyPress-Right>",
-            "<Shift-KeyPress-Left>",
-            "<Shift-KeyPress-w>",
-            "<Shift-KeyPress-s>",
-            "<Shift-KeyPress-d>",
-            "<Shift-KeyPress-a>",
-            "<Enter>",
-            "<Up>",
-            "<Down>",
-            "<Left>",
-            "<Right>",
-            "w",
-            "s",
-            "a",
-            "d",
-            "e",
-            "j",
-            "i",
-]
+
 def stat_set(player):
     stat_points = {"num": 25}
     stats = {"attack": 0,  "defence": 0, "luck": 0, "magic_defence": 0,  "magic_attack": 0,  "agility": 0}
@@ -49,13 +29,18 @@ def stat_set(player):
                     stat_points["num"] = 25
                     for stat_ in list(stats.keys()):
                         stats[stat_] = 0
+                    continue
                 else:
                     print("please enter either 'y' or 'n'")
+                stat_points["num"] -= change
+                stats[stat] += change
+                print(f"{stat}: {stats[stat]}\npoints remaining: {stat_points["num"]}")
 
 def weapon_choice():
     while True:
         try:
-            name = input(f"select a weapon.:{'\n'.join(map(str,list(PLAYER_STARTING_GEAR["weapon"].items())))}\n")
+            opts = '\n'.join(map(str,list(PLAYER_STARTING_GEAR["weapon"].items())))
+            name = input(f"select a weapon.:{opts}\n")
             if not name:
                 return Weapon()
             weapon_pick = PLAYER_STARTING_GEAR["weapon"][name]
@@ -105,7 +90,7 @@ def main():
             do_enemy_turn()
             redraw_all()
 
-        win.canvas.after(50,player.move(direction, maze_, on_complete=after_player_moves))
+        win.canvas.after(50, lambda: player.move(direction, maze_, on_complete=after_player_moves))
 
     def do_enemy_turn():
         for row in maze_.cells:
@@ -129,10 +114,10 @@ def main():
                 cell.draw(maze_)
         win.redraw()
 
-    def on_use_item():
+    def setup_inventory_controls():
         inv_state["num"] = 2
 
-        def get_item():
+        def use_selected_item():
             item_name = win.highlight_line(inv_state["num"], player)
             print(f"using{item_name}")
             player.use_item(item_name.strip(), maze_)
@@ -152,24 +137,24 @@ def main():
                 win.highlight_line(inv_state["num"], player)
                 win.inventory_formatted(str(player.inventory))
 
-        def inventory_keys():
+        def bind_inventory_keys():
             # unbind before rebinding to avoid stale triggers
             for key in USED_KEYS:
                 win.unbind_key(key)
             win.bind_key("<Up>", lambda e: increment(-1))
             win.bind_key("<Down>", lambda e: increment(1))
-            win.bind_key("<Enter>", lambda e: get_item())
+            win.bind_key("<Enter>", lambda e: use_selected_item())
             win.bind_key("w", lambda e: increment(-1))
             win.bind_key("s", lambda e: increment(1))
-            win.bind_key("e", lambda e: get_item())
+            win.bind_key("e", lambda e: use_selected_item())
             win.bind_key("i", lambda e: on_show_inv())
 
-        win.canvas.after(50, inventory_keys)
+        win.canvas.after(50, bind_inventory_keys)
 
     def on_show_inv():
         player.show_inventory(win)
         if win.inventory_show:
-            on_use_item()
+            setup_inventory_controls()
 
     def inspect_cell():
         y, x = player.location.location

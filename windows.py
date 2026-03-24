@@ -1,6 +1,6 @@
 import time
 from tkinter import Tk, Canvas, IntVar, Label, Text, font
-from main import USED_KEYS
+from constants import USED_KEYS
 
 
 class Windows:
@@ -125,7 +125,7 @@ class Windows:
         for key in USED_KEYS:
             self.unbind_key(key)
 
-        self.bind_key("y",lambda e: maze.new_maze(player,0))
+        self.bind_key("y",lambda e: maze.new_maze(player,True))
         self.bind_key("n",lambda e: self.__root.destroy())
         self.game_over_label.place(relx=0.5, rely=0.5)
         self.game_over_label.config(text=f"""
@@ -142,16 +142,17 @@ class Windows:
         self.P_level.insert("end",f"LEVEL UP!, LEVEL {player.level}","bold",)
         self.P_level.config(state="disabled")
         time.sleep(1)
-        total_points = 3
+        total_points = {"num":3}
         incr = {"num":2}
         def increment(change):
             new_val = incr["num"] + change
-            if 2 < new_val < len(player.stats.keys()-1):
+            if 2 < new_val < len(player.stats) - 1:
                 incr["num"] = new_val
                 self.highlight_line(incr["num"], player)
         def get_item():
             item_name = self.highlight_line(incr["num"], player).split(":")[0].strip()
-            print(f"{item_name} increased you have {total_points} points remaining")
+            total_points["num"] -= 1
+            print(f"{item_name} increased you have {total_points["num"]} points remaining")
             player.stats[item_name] += 1
         self.bind_key("<Up>", lambda e: increment(-1))
         self.bind_key("<Down>", lambda e: increment(1))
@@ -159,7 +160,7 @@ class Windows:
         self.bind_key("<w>", lambda e: increment(-1))
         self.bind_key("<s>", lambda e: increment(1))
         self.bind_key("<e>", lambda e: get_item())
-        while total_points:
+        while total_points["num"] > 0:
             self.inventory_text.config(state="normal")
             self.inventory_text.delete("1.0", "end")
             self.P_level.insert("end",

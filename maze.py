@@ -1,6 +1,9 @@
 from drawing import *
 from generator_ import *
 import random
+import sys
+
+sys.setrecursionlimit(2000)
 
 
 class Maze:
@@ -155,12 +158,14 @@ class Maze:
         while num_enemy > 0:
             pick = random.choice(possible)
             if pick.enemy:
+                possible.remove(pick)
                 continue
             else:
                 self.cells[pick.location[0]][pick.location[1]].enemy = True
                 self.cells[pick.location[0]][pick.location[1]].enemy_entity = generate_enemy(min(self.level, 10))
                 self.cells[pick.location[0]][pick.location[1]].enemy_entity.location = self.cells[pick.location[0]][pick.location[1]]
                 num_enemy -= 1
+                possible.remove(pick)
 
     def update_visibility(self, player):
 
@@ -205,7 +210,7 @@ class Maze:
         if not reset:
             self.level += 1
         else:
-            self.level = 0
+            self.level = 1
         self.create_maze()
         self.player_init(player)
         self.monsters_init()

@@ -1,15 +1,3 @@
-ELEMENTS = [
-    "fire",
-    "ice",
-    "lightning",
-    "water",
-    "earth",
-    "wind",
-    "light",
-    "dark",
-    "poison",
-    "physical",
-]
 class Elements:
     def __init__(self,type_ ='physical',damage=-1):
         self.type = type_
@@ -91,6 +79,13 @@ class Healing(Item):
 
     def _repr_stats(self):
         return f"Healing: {self.healing}"
+
+    def __add__(self, other):
+        if isinstance(other, int):
+            total =0
+            for element in self.healing:
+                total += element.damage
+            return other + total
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
