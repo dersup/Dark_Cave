@@ -15,9 +15,19 @@ def weighted_choice(weighted_dict):
 
 
 def generate_weapon_loot(mob_type):
-    base_name = weighted_choice(MOB_WEAPON_PREFERENCES[mob_type])
+    list_weapons = list(BASE_WEAPONS.keys())
+    if mob_type == "player":
+        base_name = input(f"select one weapon\n{'\n'.join(list_weapons)}")
+        rarity = ""
+        if base_name.lower().strip() in list_weapons:
+            base_name = base_name.lower().strip()
+        else:
+            print("invalid weapon")
+            return generate_weapon_loot(mob_type)
+    else:
+        base_name = weighted_choice(MOB_WEAPON_PREFERENCES[mob_type])
+        rarity = weighted_choice(RARITY)
     quality_name = weighted_choice(QUALITY_WEIGHT[mob_type]["weapon"])
-    rarity = weighted_choice(RARITY)
 
     base = copy.deepcopy(BASE_WEAPONS[base_name])
     name = base_name
@@ -27,7 +37,7 @@ def generate_weapon_loot(mob_type):
     description = base["description"]
     stat_bonus = 0
     if rarity:
-        choice = None
+        choice = {}
         choice_name = ""
         for i in range(RARITY_BONUS[rarity]):
             if rarity in ["rare","epic","legendary"] and not choice in list(ITEM_MODIFIERS["weapons"]["double"]):
@@ -91,9 +101,12 @@ def generate_weapon_loot(mob_type):
 
 
 def generate_armor_loot(mob_type,):
+    if mob_type == "player":
+        rarity = ""
+    else:
+        rarity = weighted_choice(RARITY)
     base_name = weighted_choice(MOB_ARMOR_PREFERENCES[mob_type])
     quality_name = weighted_choice(QUALITY_WEIGHT[mob_type]["armor"])
-    rarity = weighted_choice(RARITY)
 
     base = copy.copy(BASE_ARMOR[base_name])
     ac = base["AC"]
@@ -101,8 +114,8 @@ def generate_armor_loot(mob_type,):
     gold = base["value"]
     description = base["description"]
     stat_bonus = 0
-    choice = None
-    choice_name = None
+    choice = {}
+    choice_name = ""
     if rarity:
         for i in range(RARITY_BONUS[rarity]):
             if rarity in ["rare", "epic", "legendary"] and not choice in list(ITEM_MODIFIERS["armour"]["double"]):
@@ -199,8 +212,8 @@ def generate_enemy(level=1):
 
     def make_entity(name, health, base_name_):
         enemy_ = Entity(name, health, generate_armor_loot(base_name_), generate_weapon_loot(base_name_))
-        for stat, val in list(ENEMIES[base_name_]["stats"].items())[1:-1]:
-            enemy_.stats[stat] = val
+        for stat_, val in list(ENEMIES[base_name_]["stats"].items())[1:-1]:
+            enemy_.stats[stat_] = val
         for resist,val in ENEMIES[base_name_]["resistances"].items():
             enemy_.resistances[resist] = val
         return enemy_

@@ -1,5 +1,5 @@
 import time
-from tkinter import Tk, Canvas, IntVar, Label, Text, font
+from tkinter import Tk, Canvas, IntVar, Label, Text, font,PhotoImage
 from constants import USED_KEYS
 
 
@@ -51,13 +51,24 @@ class Windows:
             fill=fill, outline=outline, tags=tag)
         return id_
 
+    def place_floor(self,location,icon):
+        img = PhotoImage(file=icon)
+        return img ,self.canvas.create_image(location.x + self.offset_x,location.y + self.offset_y,
+                                             image=img,
+                                             anchor="center",
+                                             tags="world")
+
     def bind_key(self,key,callback):
         self.__root.bind(key,callback)
 
     def unbind_key(self,key):
         self.__root.unbind(key)
 
-    def clear(self, tags=("world",)):
+    def unbind_all(self):
+        self.__root.unbind_all("<Key>")
+        self.redraw()
+
+    def clear(self, tags="world"):
         self.canvas.delete(tags)
 
     def set_level(self, lvl):
@@ -69,6 +80,8 @@ class Windows:
             self.health_label.place_forget()
             self.inventory_text.place_forget()
             return
+        elif self.game_over_label.winfo_ismapped():
+            self.game_over_label.place_forget()
         else:
             if self.inventory_show:
                 if not self.inventory_text.winfo_ismapped():
@@ -125,11 +138,11 @@ class Windows:
         for key in USED_KEYS:
             self.unbind_key(key)
 
-        self.bind_key("y",lambda e: maze.new_maze(player,True))
+        self.bind_key("y", lambda e: maze.new_maze(player))
         self.bind_key("n",lambda e: self.__root.destroy())
         self.game_over_label.place(relx=0.5, rely=0.5)
         self.game_over_label.config(text=f"""
-              SCORE: {player.gold * maze.level}
+              SCORE: {((player.gold // 10) + player.kills) * maze.level}
                 GAME OVER
                 TRY AGAIN?
                   Y) (N

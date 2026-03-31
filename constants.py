@@ -1,4 +1,4 @@
-
+from classes import Elements
 INSPECT_WHITELIST = {
 	"Entity": ["name", "health", "max_health", "armor", "weapon", "damage_resistance"],
 	"item": ["name", "damage"],
@@ -88,7 +88,7 @@ ENEMIES = {
         "resistances": {
             "fire": 0.00, "ice": 0.00, "lightning": 0.00, "water": 0.00,
             "earth": 0.00, "wind": 0.50, "light": -0.75, "dark": 1.00,
-            "poison": 1.00, "physical": 0.50,
+            "poison": 1.00, "physical": 1.00,
         }
     },
     "dark mage": {"stats":{
@@ -128,6 +128,14 @@ ENEMIES_WEIGHT = {
 }
 
 MOB_WEAPON_PREFERENCES = {
+    "player":{
+        "axe": 100/6,
+        "club": 100/6,
+        "spear": 100/6,
+        "short sword": 100/6,
+        "dagger": 100/6,
+        "long sword": 100/6,
+    },
     "goblin": {
         "dagger": 40,
         "short sword": 30,
@@ -146,13 +154,12 @@ MOB_WEAPON_PREFERENCES = {
         "short sword": 35,
         "spear": 35,
         "axe": 15,
-        "dagger": 10,
+        "long sword": 10,
         "club": 5,
     },
     "troll": {
         "club": 50,
-        "axe": 35,
-        "spear": 15,
+        "axe": 50,
     },
     "wraith": {
         "dagger": 60,
@@ -165,12 +172,15 @@ MOB_WEAPON_PREFERENCES = {
     },
     "vampire": {
         "short sword": 40,
-        "dagger": 35,
+        "long sword": 35,
         "axe": 25,
     },
 }
 
 MOB_ARMOR_PREFERENCES = {
+    "player": {
+        "leather jerkin": 100
+    },
     "goblin": {
         "cloth": 40,
         "leather jerkin": 35,
@@ -210,6 +220,10 @@ MOB_ARMOR_PREFERENCES = {
 }
 
 MOB_ITEM_PREFERENCES = {
+    "player":{
+        "Bomb": 50,
+        "Healing Potion": 50
+    },
     "goblin": {
         "Bomb": 90,
         "Healing Potion": 10
@@ -241,6 +255,17 @@ MOB_ITEM_PREFERENCES = {
 }
 
 QUALITY_WEIGHT = {
+    "player":{
+        "items": {
+            "":100
+        },
+        "weapon": {
+            "":100
+        },
+        "armor": {
+            "":100
+        }
+    },
     "goblin": {
         "items": {
             "diluted": 40,
@@ -462,86 +487,87 @@ ELEMENT_RESIST = {
     "physical":  0.00,
 }
 
-ITEM_MODIFIERS = { "weapons": {
-    "single": {
+ITEM_MODIFIERS = {
+    "weapons": {
+        "single": {
     # ── WEAPONS ──────────────────────────────────────────────────────────────
-        "of_fire": {
-            "type": "weapon",
-            "damage_bonus": {"fire": 0.25},
-            "description": "Wreathed in flames, deals bonus fire damage.",
+            "of_fire": {
+                "type": "weapon",
+                "damage_bonus": {"fire": 0.25},
+                "description": "Wreathed in flames, deals bonus fire damage.",
+            },
+            "of_frost": {
+                "type": "weapon",
+                "damage_bonus": {"ice": 0.25},
+                "description": "Chills the air, deals bonus ice damage.",
+            },
+            "of_storms": {
+                "type": "weapon",
+                "damage_bonus": {"lightning": 0.35},
+                "description": "Crackles with electricity, deals bonus lightning damage.",
+            },
+            "of_venom": {
+                "type": "weapon",
+                "damage_bonus": {"poison": 0.20},
+                "description": "Drips with toxin, deals bonus poison damage.",
+            },
+            "of_darkness": {
+                "type": "weapon",
+                "damage_bonus": {"dark": 0.30},
+                "description": "Radiates shadow energy, deals bonus dark damage.",
+            },
+            "of_radiance": {
+                "type": "weapon",
+                "damage_bonus": {"light": 0.30},
+                "description": "Gleams with holy light, deals bonus light damage.",
+            },
+            "of_the_gale": {
+                "type": "weapon",
+                "damage_bonus": {"wind": 0.20},
+                "description": "Hums with wind force, deals bonus wind damage.",
+            },
+            "of_the_earth": {
+                "type": "weapon",
+                "damage_bonus": {"earth": 0.20},
+                "description": "Resonates with stone, deals bonus earth damage.",
+            },
+            "of_the_tide": {
+                "type": "weapon",
+                "damage_bonus": {"water": 0.20},
+                "description": "Flows with aquatic force, deals bonus water damage.",
+            },
         },
-        "of_frost": {
-            "type": "weapon",
-            "damage_bonus": {"ice": 0.25},
-            "description": "Chills the air, deals bonus ice damage.",
+        # Dual-element weapons
+        "double":{
+            "of_hellfire": {
+                "type": "weapon",
+                "damage_bonus": {"fire": 0.20, "dark": 0.20},
+                "description": "Burns with infernal energy, deals fire and dark damage.",
+            },
+            "of_the_blizzard": {
+                "type": "weapon",
+                "damage_bonus": {"ice": 0.20, "wind": 0.15},
+                "description": "Howls with arctic winds, deals ice and wind damage.",
+            },
+            "of_the_tempest": {
+                "type": "weapon",
+                "damage_bonus": {"lightning": 0.20, "wind": 0.20},
+                "description": "Roars with storm power, deals lightning and wind damage.",
+            },
+            "of_the_plague": {
+                "type": "weapon",
+                "damage_bonus": {"poison": 0.15, "dark": 0.15},
+                "description": "Festers with corruption, deals poison and dark damage.",
+            },
+            "of_the_crusader": {
+                "type": "weapon",
+                "damage_bonus": {"light": 0.20, "fire": 0.15},
+                "description": "Blazes with divine wrath, deals light and fire damage.",
+            },
         },
-        "of_storms": {
-            "type": "weapon",
-            "damage_bonus": {"lightning": 0.35},
-            "description": "Crackles with electricity, deals bonus lightning damage.",
-        },
-        "of_venom": {
-            "type": "weapon",
-            "damage_bonus": {"poison": 0.20},
-            "description": "Drips with toxin, deals bonus poison damage.",
-        },
-        "of_darkness": {
-            "type": "weapon",
-            "damage_bonus": {"dark": 0.30},
-            "description": "Radiates shadow energy, deals bonus dark damage.",
-        },
-        "of_radiance": {
-            "type": "weapon",
-            "damage_bonus": {"light": 0.30},
-            "description": "Gleams with holy light, deals bonus light damage.",
-        },
-        "of_the_gale": {
-            "type": "weapon",
-            "damage_bonus": {"wind": 0.20},
-            "description": "Hums with wind force, deals bonus wind damage.",
-        },
-        "of_the_earth": {
-            "type": "weapon",
-            "damage_bonus": {"earth": 0.20},
-            "description": "Resonates with stone, deals bonus earth damage.",
-        },
-        "of_the_tide": {
-            "type": "weapon",
-            "damage_bonus": {"water": 0.20},
-            "description": "Flows with aquatic force, deals bonus water damage.",
-        },
-    },
-    # Dual-element weapons
-    "double":{
-        "of_hellfire": {
-            "type": "weapon",
-            "damage_bonus": {"fire": 0.20, "dark": 0.20},
-            "description": "Burns with infernal energy, deals fire and dark damage.",
-        },
-        "of_the_blizzard": {
-            "type": "weapon",
-            "damage_bonus": {"ice": 0.20, "wind": 0.15},
-            "description": "Howls with arctic winds, deals ice and wind damage.",
-        },
-        "of_the_tempest": {
-            "type": "weapon",
-            "damage_bonus": {"lightning": 0.20, "wind": 0.20},
-            "description": "Roars with storm power, deals lightning and wind damage.",
-        },
-        "of_the_plague": {
-            "type": "weapon",
-            "damage_bonus": {"poison": 0.15, "dark": 0.15},
-            "description": "Festers with corruption, deals poison and dark damage.",
-        },
-        "of_the_crusader": {
-            "type": "weapon",
-            "damage_bonus": {"light": 0.20, "fire": 0.15},
-            "description": "Blazes with divine wrath, deals light and fire damage.",
-        },
-    },
 
-    # ── ARMOR ─────────────────────────────────────────────────────────────────
-},
+        # ── ARMOR ─────────────────────────────────────────────────────────────────
+    },
     "armour":{
         "single":{
             "of_flame_warding": {
@@ -616,7 +642,7 @@ ITEM_MODIFIERS = { "weapons": {
                 "type": "armor",
                 "resistance_bonus": {"light": 0.15, "dark": 0.15},
                 "description": "Attuned to both planes, resists light and dark damage.",
-            },
+                },
+            }
         }
     }
-}

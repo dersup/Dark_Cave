@@ -24,15 +24,15 @@ Weapons and armour are procedurally assembled from a base type, a quality tier, 
 **Enemy Roster with Weighted Spawning**
 7 enemy types are in the game, each with distinct stats, resistances, and loot preferences. Enemy spawn weights shift by dungeon level — goblins dominate early floors, while vampires and dark mages rule the depths.
 
-| Enemy | Notable Traits |
-|---|---|
-| Goblin | Weak, fast, poison-vulnerable, loves bombs |
-| Orc | Tanky, earth- and physical-resistant |
-| Skeleton | High defence, immune to poison, fire/light weakness |
-| Troll | High HP, fire-weak, regenerative feel |
-| Wraith | Low HP, high magic stats, immune to dark and poison |
-| Dark Mage | Glass cannon, light-weak, dark-resistant |
-| Vampire | Balanced threat, immune to dark/poison, light-weak |
+| Enemy | Notable Traits                                                 |
+|---|----------------------------------------------------------------|
+| Goblin | Weak, fast, poison-vulnerable, loves bombs                     |
+| Orc | Tanky, earth- and physical-resistant                           |
+| Skeleton | High defence, immune to poison, fire/light weakness            |
+| Troll | High HP, fire-weak, regenerative                               |
+| Wraith | Low HP, high magic stats, immune to dark, poison, and physical |
+| Dark Mage | Glass cannon, light-weak, dark-resistant                       |
+| Vampire | Balanced threat, immune to dark/poison, light-weak             |
 
 Rare, epic, and legendary variants of each enemy spawn with bonus stats, bonus loot rolls, and coloured outlines on the map.
 
@@ -126,6 +126,6 @@ Find the exit wall (the open gap on the far side of the maze) and walk through i
 Your final score on death is:
 
 ```
-Score = (Gold Collected + Kills) * Maze Depth
+Score = ((Gold Collected/10) + Kills) * Maze Depth
 ```
 

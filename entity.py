@@ -77,7 +77,7 @@ class Entity:
 			if element == elements[0]:
 				damage += extra_dam
 			damage = max((damage + element.damage) - (damage + element.damage * self.resistances[element.type]),0)
-			damage = mod * damage
+			damage = int(mod * damage)
 			total[element.type] = damage
 			self.health -= damage
 			if self.health <= 0:
@@ -103,6 +103,7 @@ class Entity:
 
 		roll = random.randint(1, 20)
 		roll += int(self.stats["luck"]*0.2)
+		roll += int(self.stats["attack"] // 4)
 		if isinstance(weapon_, Throwing):
 			if "bomb" in weapon_.name:
 				if roll > 10:
@@ -184,7 +185,7 @@ class Entity:
 
 	def give_inventory(self, target):
 		for category in self.inventory.items.keys():
-			if self.inventory.items[category] and category != "Equipped":
+			if self.inventory.items[category]:
 				target.add_items_to_inventory(self.inventory.items[category])
 		target.gold += self.gold
 		self.remove_inventory()
@@ -213,7 +214,7 @@ class Entity:
 				if match:
 					if isinstance(item_, Healing):
 						if "healing potion" in item_.name.lower():
-							self.health = min(self.max_health, self.health + item_.healing)
+							self.health = min(self.max_health, self.health + item_.healing[0])
 							print(f"{self.name} heals to {self.health}/{self.max_health}")
 						self.remove_item(item_)
 						return
@@ -235,18 +236,15 @@ class Entity:
 		print("Item not found.")
 
 	def equip_weapon(self, weapon_):
-		if weapon_ != Weapon():
-			if self.weapon == weapon_:
-				self.unequip_weapon()
-				return
-			else:
-				self.inventory.items["Equipped"].append(weapon_)
-				for stat,val_1 in weapon_.stat_bonuses.items():
-					self.stats[stat] += val_1
-				self.weapon = weapon_
-				self.remove_item(weapon_)
+		if self.weapon == weapon_:
+			self.unequip_weapon()
+			return
 		else:
+			self.inventory.items["Equipped"].append(weapon_)
+			for stat,val_1 in weapon_.stat_bonuses.items():
+				self.stats[stat] += val_1
 			self.weapon = weapon_
+			self.remove_item(weapon_)
 
 	def unequip_weapon(self):
 		equipped = self.inventory.items["Equipped"]
@@ -284,19 +282,16 @@ class Entity:
 					return
 
 	def equip_armor(self, armor_):
-		if armor_ != Armour():
-			if self.armor == armor_:
-				self.unequip_armor()
-				return
-			else:
-				self.inventory.items["Equipped"].append(armor_)
-				for (stat, val_1), (resist, val_2) in zip(armor_.stat_bonuses.items(),armor_.resistances.items()):
-					self.stats[stat] += val_1
-					self.resistances[resist] += val_2
-				self.armor = armor_
-				self.remove_item(armor_)
+		if self.armor == armor_:
+			self.unequip_armor()
+			return
 		else:
+			self.inventory.items["Equipped"].append(armor_)
+			for (stat, val_1), (resist, val_2) in zip(armor_.stat_bonuses.items(),armor_.resistances.items()):
+				self.stats[stat] += val_1
+				self.resistances[resist] += val_2
 			self.armor = armor_
+			self.remove_item(armor_)
 
 	def throw(self, item, maze):
 		row_old, col_old = self.location.location

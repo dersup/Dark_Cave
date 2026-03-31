@@ -1,5 +1,7 @@
 from drawing import *
 from generator_ import *
+from main import main
+from pathlib import Path
 import random
 import sys
 
@@ -8,10 +10,9 @@ sys.setrecursionlimit(2000)
 
 class Maze:
     def __init__(self, num_rows, num_cols, win, seed=None):
-        self.__cell_size_x = win.x // (num_cols + 1)
-        self.__cell_size_y = win.y // (num_rows + 1)
-        self.__grid_width = num_cols * self.__cell_size_x
-        self.__grid_height = num_rows * self.__cell_size_y
+        self.__cell_size = 16
+        self.__grid_width = num_cols * self.__cell_size
+        self.__grid_height = num_rows * self.__cell_size
         self.left = (win.x - self.__grid_width) / 2
         self.top = (win.y - self.__grid_height) / 2
         self.right = self.left + self.__grid_width
@@ -26,6 +27,33 @@ class Maze:
         self.visible_cells = set()
         self.level = 1
 
+    def img_finder(self):
+        try:
+            path = None
+            if self.level <= 3:
+                path = Path("assets/floors/1-3/")
+            elif self.level <= 6:
+                path = Path("assets/floors/4-6/")
+            elif self.level == 7:
+                path = Path("assets/floors/7/")
+            elif self.level == 8:
+                path = Path("assets/floors/8/")
+            elif self.level == 9:
+                path = Path("assets/floors/9/")
+            else:
+                path = Path("assets/floors/10/")
+            if not path.exists():
+                print(f"Error: The folder '{path}' does not exist.")
+                exit(1)
+            if not path.is_dir():
+                print(f"Error: '{path}' is not a directory.")
+                exit(1)
+        except Exception:
+            print(f"Error: somthing else happened.")
+            exit(1)
+        return [str(f) for f in path.iterdir() if f.is_file()]
+
+
     def create_maze(self):
         self.__win.clear()
         self.__win.set_level(self.level)
@@ -35,13 +63,15 @@ class Maze:
             curr_x = self.__tlcor.x
             self.cells.append([])
             for j in range(self.num_cols):
-                self.cells[i].append(Cell(self.__win, Point(curr_x, curr_y), Point(curr_x + self.__cell_size_x, curr_y + self.__cell_size_y)))
+                self.cells[i].append(Cell(self.__win, Point(curr_x, curr_y), Point(curr_x + self.__cell_size, curr_y + self.__cell_size)))
                 self.cells[i][j].location = [i, j]
+                icons = self.img_finder()
+                self.cells[i][j].icon = random.choice(icons)
                 self._draw_cell(i, j)
-                curr_x += self.__cell_size_x
-            curr_y += self.__cell_size_y
+                curr_x += self.__cell_size
+            curr_y += self.__cell_size
         self.break_walls()
-        self.reset_visted()
+        self.reset_visited()
 
     def _draw_cell(self, i, j):
         self.cells[i][j].draw(self, start=True)
@@ -112,7 +142,7 @@ class Maze:
                 self.cells[pick[0]][pick[1]].right = False
             self.break_walls(pick[0], pick[1])
 
-    def reset_visted(self):
+    def reset_visited(self):
         for row in self.cells:
             for cell in row:
                 cell.visited = False
@@ -206,14 +236,12 @@ class Maze:
                     if 0 <= ny < self.num_rows and 0 <= nx < self.num_cols:
                         queue.append((ny, nx, dist + 1))
 
-    def new_maze(self,player,reset=False):
-        if not reset:
-            self.level += 1
-        else:
-            self.level = 1
-        self.create_maze()
-        self.player_init(player)
-        self.monsters_init()
+    def new_maze(self,player):
+        self.cells = []
+        self.visible_cells = set()
+        self.level = 1
+        main(player,self.__win)
+
 
     def level_up(self, player):
         self.__win.show_level_up(player)

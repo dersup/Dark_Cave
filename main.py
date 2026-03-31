@@ -42,6 +42,7 @@ def weapon_choice():
             opts = '\n'.join(map(str,list(PLAYER_STARTING_GEAR["weapon"].items())))
             name = input(f"select a weapon.:{opts}\n")
             if not name:
+                print("choosing fists..\ngood luck.")
                 return Weapon()
             weapon_pick = PLAYER_STARTING_GEAR["weapon"][name]
         except (KeyError, ValueError):
@@ -50,17 +51,23 @@ def weapon_choice():
         return Weapon(name, weapon_pick["value"], weapon_pick["attack"], [weapon_pick["damage"]])
 
 
-def main():
-    gender = input("what gender is your hero?\n(Male)(Female)(Non-Binary)\n").lower().strip()
-    name = input("What is the name of your hero?: ") or name_gen(gender)
-    weapon_ = weapon_choice()
-    armour = Armour("leather jerkin", PLAYER_STARTING_GEAR["armor"]["leather jerkin"]["value"])
-    player = Entity(name, 100, armour, weapon_)
-    stat_set(player)
-    for i in range(2):
-        player.add_to_inventory(generate_items_loot("player"))
-
-    win = Windows(800, 800)
+def main(player=None,win=None):
+    from maze import Maze
+    if not player:
+        gender = input("what gender is your hero?\n(Male)(Female)(Non-Binary)\n").lower().strip()
+        name = input("What is the name of your hero?: ") or name_gen(gender)
+        weapon = generate_weapon_loot("player")
+        armor = generate_armor_loot("player")
+        player = Entity(name, 100,weapon_=weapon,armor_=armor)
+        stat_set(player)
+        for i in range(2):
+            player.add_to_inventory(generate_items_loot("player"))
+    elif player:
+        player.health = player.max_health
+    if not win:
+        win = Windows(1920, 1080)
+    elif win:
+        win.clear()
     maze_ = Maze(30, 30, win)
     maze_.create_maze()
     maze_.player_init(player)
@@ -130,8 +137,8 @@ def main():
             new_val = inv_state["num"] + change
             if 1 < new_val:
                 next_text = win.inventory_text.get(f"{new_val}.0", f"{new_val}.end")
-                if next_text in list(player.inventory.items.keys())[1:] or next_text == "-------------":
-                    inv_state["num"] = new_val + change * 2
+                if next_text.capitalize() in list(player.inventory.items.keys())[1:] or next_text == "-------------":
+                    inv_state["num"] = new_val + change
                 else:
                     inv_state["num"] = new_val
                 win.highlight_line(inv_state["num"], player)
@@ -139,8 +146,8 @@ def main():
 
         def bind_inventory_keys():
             # unbind before rebinding to avoid stale triggers
-            for key in USED_KEYS:
-                win.unbind_key(key)
+            win.unbind_all()
+            win.redraw()
             win.bind_key("<Up>", lambda e: increment(-1))
             win.bind_key("<Down>", lambda e: increment(1))
             win.bind_key("<Enter>", lambda e: use_selected_item())
@@ -148,8 +155,7 @@ def main():
             win.bind_key("s", lambda e: increment(1))
             win.bind_key("e", lambda e: use_selected_item())
             win.bind_key("i", lambda e: on_show_inv())
-
-        win.canvas.after(50, bind_inventory_keys)
+        bind_inventory_keys()
 
     def on_show_inv():
         player.show_inventory(win)
@@ -172,8 +178,8 @@ def main():
         player.facing = direction
 
     def game_keys():
-        for key in USED_KEYS:
-            win.unbind_key(key)
+        win.unbind_all()
+        win.redraw()
         # Turning
         win.bind_key("<Shift-KeyPress-Up>", lambda e: turn("up"))
         win.bind_key("<Shift-KeyPress-Down>", lambda e: turn("down"))

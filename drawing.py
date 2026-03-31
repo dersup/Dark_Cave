@@ -31,6 +31,9 @@ class Cell:
         self.left = left
         self.right = right
         self.location = []
+        self.icon = "assets/floors/1-3/texture_16px 1.png"
+        self.icon_id = None
+        self.floor = None
         self.__win = window
         self.visited = False
         self.enemy_entity = None
@@ -56,16 +59,21 @@ class Cell:
         self.__win.draw_line(Line(self.__tlcor, self.__blcor), wall_color if self.left else "black")
         self.__win.draw_line(Line(self.__brcor, self.__trcor), wall_color if self.right else "black")
 
+    def draw_floors(self):
+        self.floor, self.icon_id = self.__win.place_floor(self.cent, self.icon)
+
     def draw(self, maze, start=False):
         vision = self.is_visible(maze)
         if not start:
             if vision ==1:
                 self._draw_walls()
+                self.draw_floors()
                 if self.inventory.length():
                     self.__win.draw_circle(self.cent, 5, "gold")
                 self.player_tracking()
                 self.enemy_tracking()
             if vision == 2:
+                self.draw_floors()
                 self._draw_walls("gray")
 
 
@@ -74,15 +82,13 @@ class Cell:
             if not self.player_entity.id_:
                 self.player_entity.id_ = self.__win.draw_circle(self.cent, 5, "blue")
             else:
-                self.__win.canvas.coords(
-                    self.player_entity.id_,
-                    self.cent.x - 5,
-                    self.cent.y - 5,
-                    self.cent.x + 5,
-                    self.cent.y + 5
-                )
+                self.__win.canvas.coords(self.player_entity.id_,
+                                         self.cent.x - 5,
+                                         self.cent.y - 5,
+                                         self.cent.x + 5,
+                                         self.cent.y + 5)
             if self.player_entity.health <= 0:
-                self.remove_player()
+                return
 
     def enemy_tracking(self):
         if self.enemy_entity:
