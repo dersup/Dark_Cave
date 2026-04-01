@@ -2,12 +2,12 @@
 The Dark Cave — Pygame edition
 ─────────────────────────────
 Desktop:  python main.py
-LAN web:  bash serve_lan.sh   (runs pygbag then http.server)
+LAN web:  bash serve_lan.ps1   (runs pygbag then http.server)
 """
 import pygame
 import sys
 
-from constants import BASE_WEAPONS
+from constants import BASE_WEAPONS, COLOURS
 from windows    import Windows
 from maze       import Maze
 from entity     import Entity, next_cell, inspect
@@ -99,10 +99,10 @@ def _stat_allocation(win: Windows, player: Entity):
             c   = (120, 180, 255) if i == cursor[0] else (200, 195, 180)
             bar = "█" * values[stat] + "░" * (25 - values[stat])
             win.txt(f"{pre}{stat:<15} {values[stat]:>2}  {bar[:20]}", win.w // 2 - 160, y, "md", c)
-        hint = ("W/S:navigate    A/D or ◄►:add/remove    Enter:confirm (when 0 left)"
+        hint = ("W/S:navigate    A/D or ◄►:remove/add    Enter:confirm (when 0 left)"
                 if remaining > 0 else
                 "W/S:navigate    A/D or ◄►:adjust    Enter:confirm")
-        win.txt(hint, win.w // 2, win.h * 5 // 6, "sm", (110, 100, 90), center=True)
+        win.txt(hint, win.w // 2, win.h * 5 // 6, "sm", COLOURS["gray"], center=True)
         pygame.display.flip()
         win.clock.tick(30)
 
@@ -226,7 +226,7 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
             return
         busy = True
         old_cell = player.location
-        player.move(direction, maze, on_complete=after_player_move)
+        message = player.move(direction, maze, on_complete=after_player_move)
         # register source cell for animation ticking
         if old_cell not in win.animating_cells:
             win.animating_cells.append(old_cell)

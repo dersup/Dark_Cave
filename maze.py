@@ -14,9 +14,7 @@ class Maze:
         self.num_rows  = num_rows
         self.num_cols  = num_cols
         self._win      = win
-        self.CELL_SIZE = 16          # pixels per cell (matches your tile PNGs)
-
-        # Grid world origin — centred in the window
+        self.CELL_SIZE = 32
         grid_w = num_cols * self.CELL_SIZE
         grid_h = num_rows * self.CELL_SIZE
         self.origin = Point(

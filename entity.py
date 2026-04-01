@@ -1,5 +1,6 @@
 import random
 import re
+
 from classes import *
 from constants import *
 
@@ -95,10 +96,10 @@ class Entity:
 					attacker.level += 1
 					maze.level_up(attacker)
 			level_check()
+			return f"{dead.name} has been slane"
 
 		if not weapon_:
-			print("You have no weapon.")
-			return
+			return "You have no weapon."
 		dam_taken = {}
 
 		roll = random.randint(1, 20)
@@ -118,26 +119,26 @@ class Entity:
 			if attack_total >= enemy_ac:
 				dam_taken = enemy.take_damage(weapon_.elements,extra_dam=self.stats["attack"])
 			else:
-				print(f"{self.name} misses {enemy.name}.")
-				return
+				return f"{self.name} misses {enemy.name}."
 		if dam_taken:
-			print(f"{self.name} hits {enemy.name} with {weapon_.name} for ",end='')
+			message = f"{self.name} hits {enemy.name} with {weapon_.name} for "
 			for ele,dam in dam_taken.items():
 				if len(list(dam_taken.keys())) >= 3:
 					if ele == list(dam_taken.keys())[-1]:
-						print(f"and {dam} {ele}")
+						message += f"and {dam} {ele}"
 						break
 					else:
-						print(f"{dam} {ele} damage",end=",")
+						message += f"{dam} {ele} damage"
 						continue
 				elif len(list(dam_taken.keys())) == 2:
 					if ele == list(dam_taken.keys())[0]:
-						print(f"{dam} {ele}",end=" and ")
-				print(f"{dam} {ele} damage")
+						message += f"{dam} {ele} and "
+				message += f"{dam} {ele} damage"
+				return message
 			if enemy.health <= 0:
-				killed(self,enemy)
+				return killed(self,enemy)
 		else:
-			print(f"{enemy.name} took no damage")
+			return f"{enemy.name} took no damage"
 
 	# ------------------------
 	# Inventory
@@ -154,33 +155,42 @@ class Entity:
 		elif isinstance(item_, Item):
 			self.inventory.items["Consumables"].remove(item_)
 		else:
-			print("item not in inventory")
+			return "item not in inventory"
+		return f"{item_} removed"
 
 	def add_to_inventory(self, item_):
 		key = "Weapons" if isinstance(item_, Weapon) else "Armors" if isinstance(item_, Armour) else "Consumables"
 		if not key:
-			print(f"not able to put {item_} in inventory")
-			return
+			return f"not able to put {item_} in inventory"
 		else:
 			self.inventory.items[key].append(item_)
+		return f"{item_} added to inventory"
 
 	def add_items_to_inventory(self, items):
+		message = ""
 		if len(items) == 1:
-			self.add_to_inventory(items[0])
-			return
+			message = self.add_to_inventory(items[0])
+			return message
 		else:
 			for item in items:
-				self.add_to_inventory(item)
+				message += f"{self.add_to_inventory(item)}\n"
+		return message
 
 	def get_cell_inventory(self,target):
+		message1 = ""
+		message2 = ""
 		for category in list(target.inventory.items.keys()):
 			if target.inventory.items[category] and category != "Equipped":
 				self.add_items_to_inventory(target.inventory.items[category])
-				print(f"adding{target.inventory.items[category]} to inventory")
-		self.gold += target.gold
-		print(f"adding gold: {target.gold}")
+				message1 += f"adding{target.inventory.items[category]} to inventory"
+		if target.gold > 0:
+			self.gold += target.gold
+			message2 = f"adding gold: {target.gold}"
 		target.remove_inventory()
 		target.gold = 0
+		if not message1:
+			message1 = f"no items to be found"
+		return message1, message2
 
 
 	def give_inventory(self, target):
@@ -205,6 +215,7 @@ class Entity:
 	# ------------------------
 
 	def use_item(self, item_name, maze=None):
+		message =""
 		pattern = re.compile(rf"{item_name}", flags=re.IGNORECASE)
 		for category, items in self.inventory.items.items():
 			for item_ in items:
@@ -213,56 +224,49 @@ class Entity:
 					if isinstance(item_, Healing):
 						if "healing potion" in item_.name.lower():
 							self.health = min(self.max_health, self.health + item_.healing[0])
-							print(f"{self.name} heals to {self.health}/{self.max_health}")
+							message = f"{self.name} heals to {self.health}/{self.max_health}"
 						self.remove_item(item_)
-						return
+						return message
 					elif isinstance(item_, Throwing):
 						if "bomb" in item_.name.lower():
 							if not maze:
-								print("you need to see where your throwing")
-								return
-							self.throw(item_, maze)
+								return "you need to see where your throwing"
+							message = self.throw(item_, maze)
 						self.remove_item(item_)
-						return
+						return message
 					elif isinstance(item_, Weapon):
-						self.equip_weapon(item_)
-						return
+						message = self.equip_weapon(item_)
+						return message
 					elif isinstance(item_, Armour):
-						self.equip_armor(item_)
-						return
+						message = self.equip_armor(item_)
+						return message
 
-		print("Item not found.")
+		return "Item not found."
 
 	def equip_weapon(self, weapon_):
 		if self.weapon == weapon_:
-			self.unequip_weapon()
-			return
-		else:
-			self.inventory.items["Equipped"].append(weapon_)
-			for stat,val_1 in weapon_.stat_bonuses.items():
-				self.stats[stat] += val_1
-			self.weapon = weapon_
-			self.remove_item(weapon_)
+			message = self.unequip_weapon()
+			return message
+		self.inventory.items["Equipped"].append(weapon_)
+		for stat,val_1 in weapon_.stat_bonuses.items():
+			self.stats[stat] += val_1
+		self.weapon = weapon_
+		self.remove_item(weapon_)
+		return f"{weapon_} was equipped."
 
 	def unequip_weapon(self):
 		equipped = self.inventory.items["Equipped"]
 		for items in equipped:
 			if not isinstance(items, list):
-				if isinstance(items, Weapon):
-					self.add_to_inventory(items)
-					self.inventory.items["Equipped"].remove(items)
-					for stat, val_1 in items.stat_bonuses.items():
-						self.stats[stat] -= val_1
-					self.equip_weapon(Weapon())
-				return
+				items = [items]
 			for item in items:
 				if isinstance(item, Weapon):
 					self.add_to_inventory(item)
 					self.inventory.items["Equipped"].remove(item)
 					for stat, val_1 in item.stat_bonuses.items():
 						self.stats[stat] -= val_1
-					self.equip_weapon(Weapon())
-					return
+					message = self.equip_weapon(Weapon())
+					return message
 
 	def unequip_armor(self):
 		equipped = self.inventory.items["Equipped"]
@@ -276,13 +280,12 @@ class Entity:
 					for (stat, val_1), (resist, val_2) in zip(item.stat_bonuses.items(),item.resistances.items()):
 						self.stats[stat] -= val_1
 						self.resistances[resist] -= val_2
-					self.equip_armor(Armour())
-					return
+					message = self.equip_armor(Armour())
+					return message
 
 	def equip_armor(self, armor_):
 		if self.armor == armor_:
-			self.unequip_armor()
-			return
+			return self.unequip_armor()
 		else:
 			self.inventory.items["Equipped"].append(armor_)
 			for (stat, val_1), (resist, val_2) in zip(armor_.stat_bonuses.items(),armor_.resistances.items()):
@@ -290,20 +293,20 @@ class Entity:
 				self.resistances[resist] += val_2
 			self.armor = armor_
 			self.remove_item(armor_)
+		return f"{armor_} was equipped."
 
 	def throw(self, item, maze):
 		row_old, col_old = self.location.location
 		distance = item.distance
+		message = ""
 		for i in range(0,distance-1):
 			curr_cell = maze.cells[row_old][col_old]
 			if curr_cell.can_move(self.facing, maze) == "move":
 				row, col = next_cell(row_old, col_old, self.facing)
 				if not((0 < row < maze.num_rows - 1) and (0 < col < maze.num_cols - 1)):
-					print(f"you tossed {item} outside")
-					return
+					return f"you tossed {item} outside"
 				if curr_cell.enemy_entity:
-					self.attack_target(curr_cell.enemy_entity, item, maze)
-					return
+					return self.attack_target(curr_cell.enemy_entity, item, maze)
 			if "bomb" in item.name.lower():
 				row, col = next_cell(row_old, col_old, self.facing)
 				if curr_cell.can_move(self.facing, maze) == "bump":
@@ -322,14 +325,14 @@ class Entity:
 					if curr_cell == self.location:
 						for element in item.elements:
 							element.damage *= 0.5
-						self.take_damage(item.elements)
+						return self.take_damage(item.elements)
 					other_side = maze.cells[row][col]
 					if other_side.enemy_entity:
 						for element in item.elements:
 							element.damage *= 0.5
-						other_side.enemy_entity.take_damage(item.elements)
-					print("the wall collapses!")
-					return
+						message = other_side.enemy_entity.take_damage(item.elements)
+					message += "\nthe wall collapses!"
+					return message
 			row_old, col_old = next_cell(row_old, col_old, self.facing)
 
 		print(f"{item.name} hits the ground")

@@ -33,8 +33,8 @@ python main.py
 
 ```bash
 pip install pygame pygbag
-bash serve_lan.sh          # default port 8080
-# or: bash serve_lan.sh 9000
+bash serve_lan.ps1          # default port 8080
+# or: bash serve_lan.ps1 9000
 ```
 
 Open `http://<your-LAN-ip>:8080` from any device on the same network.

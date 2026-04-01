@@ -4,8 +4,20 @@ INSPECT_WHITELIST = {
 	"item": ["name", "damage"],
 	"weapon": ["name", "damage", "attack"],
 	"armor": ["name", "AC"],
-	"Cell": ["enemy_entity", "player_entity", "inventory"],
-	"Player": ["name", "health", "max_health", "armor", "weapon", "damage_resistance"],
+	"Cell": ["enemy_entity", "inventory"],
+}
+COLOURS = {
+    "gray":       (110, 105,  98),
+    "black":      (  0,   0,   0),
+    "blue":       ( 60, 120, 255),
+    "red":        (220,  50,  50),
+    "green":      ( 50, 180,  50),
+    "dark green": (  0, 100,   0),
+    "gold":       (255, 210,  50),
+    "orange":     (255, 165,   0),
+    "purple":     (160,  32, 240),
+    "brown":      (139,  90,  43),
+    "white":      (255, 255, 255),
 }
 USED_KEYS =["<Shift-KeyPress-Up>",
             "<Shift-KeyPress-Down>",
