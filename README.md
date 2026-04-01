@@ -1,131 +1,78 @@
-# The Dark Cave
+# The Dark Cave — Pygame Edition
 
-A top-down roguelite dungeon crawler with Diablo-style procedural loot, built in Python using Tkinter.
-
-Descend through an ever-deepening cave system, fight escalating monsters, and collect randomized gear — but death means starting over. How deep can you go?
-
----
-
-## Features
-
-**Procedurally Generated Mazes**
-Each floor is a unique maze carved by a recursive backtracker algorithm. Entrances and exits are placed randomly on the borders, so no two runs play the same.
-
-**Diablo-Style Loot System**
-Weapons and armour are procedurally assembled from a base type, a quality tier, a rarity tier, and elemental modifiers:
-- Quality tiers range from *broken* and *crude* up to *masterwork*, affecting damage multipliers and gold value.
-- Rarity tiers (rare, epic, legendary) add elemental enchantments and stat bonuses.
-- Single and dual-element weapon enchantments: *of Fire*, *of the Tempest*, *of Hellfire*, and more.
-- Armour enchantments add elemental resistances: *of Flame Warding*, *of the Exorcist*, *of the Sanctified*, and more.
-
-**Elemental Damage & Resistance**
-10 elements are modelled throughout combat: fire, ice, lightning, water, earth, wind, light, dark, poison, and physical. Every enemy has unique resistances and vulnerabilities — skeletons laugh at poison but crumble to fire and light; wraiths are immune to dark but shatter against holy light.
-
-**Enemy Roster with Weighted Spawning**
-7 enemy types are in the game, each with distinct stats, resistances, and loot preferences. Enemy spawn weights shift by dungeon level — goblins dominate early floors, while vampires and dark mages rule the depths.
-
-| Enemy | Notable Traits                                                 |
-|---|----------------------------------------------------------------|
-| Goblin | Weak, fast, poison-vulnerable, loves bombs                     |
-| Orc | Tanky, earth- and physical-resistant                           |
-| Skeleton | High defence, immune to poison, fire/light weakness            |
-| Troll | High HP, fire-weak, regenerative                               |
-| Wraith | Low HP, high magic stats, immune to dark, poison, and physical |
-| Dark Mage | Glass cannon, light-weak, dark-resistant                       |
-| Vampire | Balanced threat, immune to dark/poison, light-weak             |
-
-Rare, epic, and legendary variants of each enemy spawn with bonus stats, bonus loot rolls, and coloured outlines on the map.
-
-**Fog of War & Visibility**
-The map is hidden until explored. A radius-2 BFS visibility system reveals cells through open walls in real time as you move. Previously visited cells are shown in grey.
-
-**Turn-Based Combat**
-Movement and attacks are interleaved: you act, then every visible enemy takes its turn. Enemies adjacent to you through an open wall will attack; others wander randomly. Attack rolls use a D20 system modified by your luck stat, compared against the enemy's armour class.
-
-**Roguelite Progression**
-- Levelling up grants 3 stat points to allocate across attack, defence, luck, magic defence, magic attack, and agility.
-- Each new dungeon floor increases in difficulty, with more and tougher enemies.
-- Death ends the run. Your score is `gold × dungeon level`.
-
-**Inventory & Item Management**
-The inventory is split into Equipped, Weapons, Armours, and Consumables. Open it mid-game, navigate with the keyboard, and use items directly from the menu. Consumables include healing potions and throwable bombs.
+A complete port of the Tkinter maze RPG to Pygame, playable as a desktop app
+or served to any browser on your local network via pygbag/WebAssembly.
 
 ---
 
-## Requirements
+## File changes
 
-- Python 3.10+
-- Tkinter (included in most Python distributions)
-
-No third-party packages are required.
+| File | Status | Notes |
+|------|--------|-------|
+| `classes.py` | **unchanged** | All item/inventory logic intact |
+| `constants.py` | **unchanged** | All game data intact |
+| `entity.py` | **unchanged** | All combat/AI logic intact |
+| `generator_.py` | **unchanged** | All loot/enemy generation intact |
+| `drawing.py` | **replaced** | Tkinter Canvas → Pygame surface |
+| `windows.py` | **replaced** | Tk/Label/Text → Pygame renderer + HUD |
+| `maze.py` | **replaced** | Removed per-cell `redraw()` spam; uses `floor_colour()` |
+| `main.py` | **replaced** | Pygame event loop; text/menu input screens |
 
 ---
 
-## Installation
+## Run locally (desktop)
 
 ```bash
-git clone https://github.com/dersup/Dark_Cave.git
-cd Dark-Cave
+pip install pygame
 python main.py
 ```
 
 ---
 
-## How to Play
+## Run in browser (LAN)
 
-### Character Creation
-On startup you will be prompted to:
-1. Choose your hero's gender (used for name generation if you skip naming).
-2. Enter a name, or press Enter to generate one randomly.
-3. Pick a starting weapon from the available options.
-4. Allocate 25 stat points across your six ability scores.
+```bash
+pip install pygame pygbag
+bash serve_lan.sh          # default port 8080
+# or: bash serve_lan.sh 9000
+```
 
-### Controls
+Open `http://<your-LAN-ip>:8080` from any device on the same network.
+
+The build step (pygbag) compiles the game to WebAssembly.
+It runs once and caches; subsequent serves are instant.
+
+---
+
+## Controls
 
 | Key | Action |
-|---|---|
-| `W` / `↑` | Move up |
-| `S` / `↓` | Move down |
-| `A` / `←` | Move left |
-| `D` / `→` | Move right |
-| `Shift + W/A/S/D` or `Shift + Arrow` | Turn to face a direction without moving |
-| `E` | Pick up items from the cell ahead |
-| `I` | Toggle inventory |
-| `J` | Inspect the cell ahead |
-| `↑` / `↓` or `W` / `S` (in inventory) | Navigate items |
-| `Enter` / `E` (in inventory) | Use selected item |
-
-### Combat
-Walking into an enemy attacks them. Enemies attack you back on their turn. Use the turn keys to face a direction and throw bombs down a corridor without stepping into danger.
-
-### Loot
-Killed enemies drop their equipped weapon, armour, and any consumables they carried into the cell. Walk over the cell and press `E` to pick everything up. Items in a cell are shown as a gold dot on the map.
-
-### Exiting a Floor
-Find the exit wall (the open gap on the far side of the maze) and walk through it to descend to the next floor. You keep all your gear between floors.
+|-----|--------|
+| WASD / Arrow keys | Move |
+| Shift + WASD/Arrows | Face a direction without moving |
+| E | Pick up items from adjacent cell |
+| I | Open/close inventory |
+| ↑↓ / WS (in inventory) | Navigate |
+| Enter / E (in inventory) | Use selected item |
+| J | Inspect adjacent cell |
+| Esc | Quit |
 
 ---
 
-## Project Structure
+## Key design decisions
 
-| File | Purpose |
-|---|---|
-| `main.py` | Entry point, game loop, input bindings |
-| `maze.py` | Maze generation, visibility, monster spawning, floor transitions |
-| `drawing.py` | Cell rendering, animation, wall drawing |
-| `entity.py` | Player and enemy logic, combat, inventory management |
-| `generator_.py` | Procedural loot and enemy generation |
-| `classes.py` | Core data classes: Item, Weapon, Armour, Healing, Throwing, Inventory, Elements |
-| `windows.py` | Tkinter window, UI labels, inventory display, game over screen |
-| `constants.py` | All game data: enemy stats, loot tables, item modifiers, spawn weights |
+**No `time.sleep` / no `mainloop()`** — pygbag requires an async-friendly loop.
+The game loop lives in `Windows.wait_for_close()` which calls `redraw()` each
+frame. All "blocking" character-creation steps (name input, stat allocation) are
+implemented as Pygame sub-loops that still process events normally.
 
----
+**Animations** — `Cell.ani_move()` stores start/end/time rather than scheduling
+Tkinter `after()` callbacks. `Cell.tick_animation()` is called each frame from
+the draw pass so movement is smooth.
 
-## Scoring
+**Floor textures** — PNG assets are replaced with colour-coded tiles per dungeon
+level (avoids file I/O issues in the browser sandbox). Swap `floor_colour()` in
+`drawing.py` for real `pygame.image.load()` calls to restore artwork locally.
 
-Your final score on death is:
-
-```
-Score = ((Gold Collected/10) + Kills) * Maze Depth
-```
-
+**Audio** — not present in the original; ALSA errors on headless Linux are safe
+to ignore.

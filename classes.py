@@ -86,6 +86,8 @@ class Healing(Item):
             for element in self.healing:
                 total += element.damage
             return other + total
+        else:
+            raise TypeError
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):

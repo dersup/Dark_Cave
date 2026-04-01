@@ -1,184 +1,324 @@
+import pygame
+import sys
 import time
-from tkinter import Tk, Canvas, IntVar, Label, Text, font,PhotoImage
-from constants import USED_KEYS
+
+
+# ---------------------------------------------------------------------------
+# Palette & typography
+# ---------------------------------------------------------------------------
+BG           = ( 10,   8,  12)
+PANEL        = ( 22,  18,  28, 220)   # RGBA — semi-transparent
+BORDER       = ( 70,  55,  90)
+TEXT         = (220, 215, 200)
+MUTED        = (120, 110, 100)
+GOLD         = (255, 210,  50)
+HP_COL       = (210,  55,  55)
+LEVEL_COL    = (160, 130, 255)
+HIGHLIGHT_BG = ( 55,  45,  75)
+HIGHLIGHT_FG = (120, 180, 255)
+GAMEOVER_COL = (180,  30,  30)
+
+FONT_SIZE = {"lg": 22, "md": 16, "sm": 13}
 
 
 class Windows:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.__root = Tk()
-        self.__root.title("The Dark Cave")
-        self.canvas = Canvas(self.__root, bg="black", height=y, width=x)
-        self.canvas.pack()
-        self.counter = IntVar(value=1)
-        self.level_label = Label(self.__root, text="level: 1", font=("Arial", 16), bg="black", fg="white")
-        self.level_label.place(relx=0.5, rely=0.05, anchor="n")
-        self.health_label = Label(self.__root, text="HP: 0/0", font=("Arial", 16), bg="black", fg="red")
-        self.health_label.place(relx=0.1, rely=0.05, anchor="nw")
-        self.inventory_text = Text(self.__root, font=("Arial", 11), bg="black", fg="white", bd=0, highlightthickness=0, state="disabled", width=30)
-        bold_font = font.Font(family="Arial", size=11, weight="bold")
-        self.inventory_text.tag_configure("bold", font=bold_font)
-        self.gold_label = Label(self.__root, text="Gold: 0", font=("Arial", 16), bg="black", fg="gold")
-        self.gold_label.place(relx=0.1, rely=0.9, anchor="sw")
-        self.game_over_label = Label(self.__root, text="GAME OVER",font=("Arial", 25), bg="black", fg="darkred")
-        self.info_label = Label(self.__root, font=("Arial", 12), bg="black", fg="white")
-        self.P_level = Text(self.__root, font=("Arial", 11), bg="black", fg="gold", bd=0, highlightthickness=0, state="disabled", width=30)
+    def __init__(self, width=1280, height=800):
+        pygame.init()
+        self.w = width
+        self.h = height
+        self._screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
+        pygame.display.set_caption("The Dark Cave")
+        self.surface = self._screen
+        self.clock   = pygame.time.Clock()
 
-        self.offset_x = 0
-        self.offset_y = 0
+        # Fonts
+        mono = pygame.font.match_font(
+            "cascadiacode,consolas,jetbrainsmono,dejavusansmono,monospace"
+        )
+        self.font = {
+            sz: pygame.font.Font(mono, pt)
+            for sz, pt in FONT_SIZE.items()
+        }
+
+        # Camera offset (world → screen)
+        self._camera_x = 0.0
+        self._camera_y = 0.0
+
+        # UI state
+        self._level_str  = "level: 1"
+        self._hp_str     = "HP: 0/0"
+        self._gold_str   = "Gold: 0"
         self.inventory_show = False
+        self._inv_lines  = []        # list of (text, is_header)
+        self._inv_cursor = 0
+        self._info_str   = ""
+        self._game_over  = False
+        self._go_text    = ""
+        self._log        = []        # recent combat messages
+        self._log_timer  = []        # parallel: time each line was added
+
+        # Key callbacks: pygame key (or ("shift", key)) → callable
+        self._keys: dict = {}
+
+        # Scheduled callbacks: [(fire_at_time, callable), ...]
+        self._scheduled: list = []
+
+        # Cells that are currently animating (checked every frame)
+        self.animating_cells: list = []
+
+    # -----------------------------------------------------------------------
+    # Camera
+    # -----------------------------------------------------------------------
+    @property
+    def camera(self):
+        return self._camera_x, self._camera_y
 
     def center_on(self, player):
-        self.offset_x = self.x / 2 - player.location.cent.x
-        self.offset_y = self.y / 2 - player.location.cent.y
+        self._camera_x = self.w / 2 - player.location.cent.x
+        self._camera_y = self.h / 2 - player.location.cent.y
 
-    def redraw(self):
-        self.__root.update_idletasks()
-        self.__root.update()
+    # -----------------------------------------------------------------------
+    # Key bindings  (clean pygame — no Tkinter strings)
+    # -----------------------------------------------------------------------
+    def bind(self, key, callback):
+        """key: pygame.K_* constant, or ("shift", pygame.K_*) for shifted keys."""
+        self._keys[key] = callback
 
-    def wait_for_close(self):
-        self.__root.mainloop()
-
-    def draw_line(self, line, colour):
-        line.draw(self.canvas, colour, self.offset_x, self.offset_y)
-
-    def draw_circle(self, point, radius, fill:str, outline="", tag="world"):
-        x, y = point.x + self.offset_x, point.y + self.offset_y
-        id_ = self.canvas.create_oval(
-            x - radius, y - radius,
-            x + radius, y + radius,
-            fill=fill, outline=outline, tags=tag)
-        return id_
-
-    def place_floor(self,location,icon):
-        img = PhotoImage(file=icon)
-        return img ,self.canvas.create_image(location.x + self.offset_x,location.y + self.offset_y,
-                                             image=img,
-                                             anchor="center",
-                                             tags="world")
-
-    def bind_key(self,key,callback):
-        self.__root.bind(key,callback)
-
-    def unbind_key(self,key):
-        self.__root.unbind(key)
+    def unbind(self, key):
+        self._keys.pop(key, None)
 
     def unbind_all(self):
-        self.__root.unbind_all("<Key>")
-        self.redraw()
+        self._keys.clear()
 
-    def clear(self, tags="world"):
-        self.canvas.delete(tags)
+    # -----------------------------------------------------------------------
+    # Scheduling  (replaces canvas.after)
+    # -----------------------------------------------------------------------
+    def after(self, ms, callback):
+        self._scheduled.append((time.time() + ms / 1000.0, callback))
 
+    def _fire_scheduled(self):
+        now = time.time()
+        due, pending = [], []
+        for (t, cb) in self._scheduled:
+            (due if t <= now else pending).append((t, cb))
+        self._scheduled = pending
+        for _, cb in due:
+            cb()
+
+    # -----------------------------------------------------------------------
+    # Combat log
+    # -----------------------------------------------------------------------
+    def log(self, message: str):
+        self._log.append(message)
+        self._log_timer.append(time.time())
+        if len(self._log) > 6:
+            self._log.pop(0)
+            self._log_timer.pop(0)
+
+    # -----------------------------------------------------------------------
+    # HUD updates (called by game logic)
+    # -----------------------------------------------------------------------
     def set_level(self, lvl):
-        self.level_label.config(text=f"level: {lvl}")
+        self._level_str = f"level: {lvl}"
 
-    def player_labels(self, player=None,game_over=False):
-        if game_over:
-            self.gold_label.place_forget()
-            self.health_label.place_forget()
-            self.inventory_text.place_forget()
-            return
-        elif self.game_over_label.winfo_ismapped():
-            self.game_over_label.place_forget()
-        else:
-            if self.inventory_show:
-                if not self.inventory_text.winfo_ismapped():
-                    self.inventory_text.place(relx=0.5, rely=0.25,anchor="n")
-                if not self.info_label.winfo_ismapped():
-                    self.info_label.place(relx=0.7, rely=0.2,anchor="n")
-                self.inventory_formatted(str(player.inventory))
-            else:
-                self.inventory_text.place_forget()
-                self.info_label.place_forget()
-            self.health_label.config(text=f"HP: {player.health}/{player.max_health}")
-            self.gold_label.config(text=f"Gold: {str(player.gold) or "0"}")
+    def set_player_stats(self, player):
+        self._hp_str   = f"HP: {player.health}/{player.max_health}"
+        self._gold_str = f"Gold: {player.gold}"
 
-    def inventory_formatted(self, content):
-        self.inventory_text.config(state="normal")
-        self.inventory_text.delete("1.0", "end")
-        for line in content.split("\n"):
-            if line in ["Equipped", "Armors", "Weapons", "Consumables"]:
-                self.inventory_text.insert("end", line + "\n", "bold")
-            elif not line:
+    def set_inventory(self, player):
+        HEADERS = {"Equipped", "Armors", "Weapons", "Consumables"}
+        self._inv_lines = []
+        for line in str(player.inventory).split("\n"):
+            s = line.strip()
+            if not s or s == "-------------":
                 continue
+            self._inv_lines.append((s, s in HEADERS))
+
+    # -----------------------------------------------------------------------
+    # Level-up screen (blocking sub-loop)
+    # -----------------------------------------------------------------------
+    def show_level_up(self, player):
+        options = ["attack", "defence", "luck",
+                   "magic_defence", "magic_attack", "agility"]
+        cursor   = [0]
+        points   = [3]
+
+        def render():
+            self.surface.fill(BG)
+            self.txt(f"LEVEL UP!  Now level {player.level}", self.w // 2, self.h // 4, "lg", LEVEL_COL, center=True)
+            self.txt(f"  {points[0]} point(s) remaining — choose a stat:", self.w // 2, self.h // 4 + 40, "md", TEXT,
+                     center=True)
+            for i, stat in enumerate(options):
+                y = self.h//4 + 85 + i * 30
+                pre = "▶ " if i == cursor[0] else "  "
+                c = HIGHLIGHT_FG if i == cursor[0] else TEXT
+                self.txt(f"{pre}{stat}: {player.stats[stat]}", self.w // 2 - 80, y, "md", c)
+            self.txt("W/↑ S/↓ navigate    Enter/E to pick", self.w // 2, self.h * 3 // 4, "sm", MUTED, center=True)
+            pygame.display.flip()
+            self.clock.tick(30)
+
+        render()
+        while points[0] > 0:
+            for ev in pygame.event.get():
+                if ev.type == pygame.QUIT:
+                    pygame.quit(); sys.exit()
+                if ev.type == pygame.KEYDOWN:
+                    if ev.key in (pygame.K_UP, pygame.K_w):
+                        cursor[0] = (cursor[0] - 1) % len(options)
+                    elif ev.key in (pygame.K_DOWN, pygame.K_s):
+                        cursor[0] = (cursor[0] + 1) % len(options)
+                    elif ev.key in (pygame.K_RETURN, pygame.K_e):
+                        player.stats[options[cursor[0]]] += 1
+                        points[0] -= 1
+            render()
+
+    # -----------------------------------------------------------------------
+    # Game over screen
+    # -----------------------------------------------------------------------
+    def show_game_over(self, player, maze, on_retry, on_quit):
+        score = ((player.gold // 10) + player.kills) * maze.level
+        self._game_over = True
+        self._go_text   = f"SCORE: {score}\n\nGAME OVER\n\nTRY AGAIN?\n  Y)   (N"
+        self.unbind_all()
+        self.bind(pygame.K_y, lambda: on_retry())
+        self.bind(pygame.K_n, lambda: on_quit())
+
+    # -----------------------------------------------------------------------
+    # Inventory cursor control
+    # -----------------------------------------------------------------------
+    def inv_cursor_move(self, delta):
+        n = len(self._inv_lines)
+        if n == 0:
+            return
+        new = self._inv_cursor + delta
+        new = max(0, min(new, n - 1))
+        # skip headers
+        while 0 <= new < n and self._inv_lines[new][1]:
+            new += delta
+        if 0 <= new < n:
+            self._inv_cursor = new
+            text, _ = self._inv_lines[new]
+            self._info_str = text
+
+    def inv_selected_name(self):
+        if 0 <= self._inv_cursor < len(self._inv_lines):
+            return self._inv_lines[self._inv_cursor][0].split("(")[0].strip()
+        return ""
+
+    # -----------------------------------------------------------------------
+    # Main render pass
+    # -----------------------------------------------------------------------
+    def render(self):
+        """Draw HUD, inventory, log, game-over overlay on top of the world."""
+        self._draw_hud()
+        if self.inventory_show:
+            self._draw_inventory()
+        self._draw_log()
+        if self._game_over:
+            self._draw_game_over()
+
+    def txt(self, text, x, y, size="md", colour=TEXT, center=False):
+        surf = self.font[size].render(text, True, colour)
+        if center:
+            x -= surf.get_width() // 2
+        self.surface.blit(surf, (x, y))
+        return surf.get_width(), surf.get_height()
+
+    def _draw_hud(self):
+        # Level — top centre
+        self.txt(self._level_str, self.w // 2, 10, "md", LEVEL_COL, center=True)
+        # HP — top left
+        self.txt(self._hp_str, 16, 10, "md", HP_COL)
+        # Gold — bottom left
+        self.txt(self._gold_str, 16, self.h - 28, "md", GOLD)
+        # Controls hint — bottom right
+        hint = "WASD/Arrows:Move  Shift+dir:Face  E:Pick up  I:Inventory"
+        self.txt(hint, self.w - 10 - self.font["sm"].size(hint)[0], self.h - 22, "sm", MUTED)
+
+    def _draw_inventory(self):
+        pw, ph = 300, min(self.h - 120, len(self._inv_lines) * 20 + 80)
+        px, py = (self.w - pw) // 2, 50
+
+        panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
+        panel.fill(PANEL)
+        self.surface.blit(panel, (px, py))
+        pygame.draw.rect(self.surface, BORDER, (px, py, pw, ph), 1)
+
+        self.txt("INVENTORY  (I to close)", px + 10, py + 8, "md", LEVEL_COL)
+        pygame.draw.line(self.surface, BORDER, (px, py+30), (px+pw, py+30), 1)
+
+        y = py + 36
+        for i, (text, is_hdr) in enumerate(self._inv_lines):
+            if y > py + ph - 24:
+                break
+            label = text.split("(")[0].strip()
+            if is_hdr:
+                self.txt(label, px + 10, y, "sm", GOLD)
+            elif i == self._inv_cursor:
+                pygame.draw.rect(self.surface, HIGHLIGHT_BG,
+                                 (px+2, y-1, pw-4, 18))
+                self.txt(label, px + 10, y, "sm", HIGHLIGHT_FG)
             else:
-                self.inventory_text.insert("end", line.split("(")[0].strip() + "\n")
-        self.inventory_text.config(state="disabled")
+                self.txt(label, px + 10, y, "sm", TEXT)
+            y += 20
 
-    def display_info(self,content):
-        self.info_label.config(text=content)
-        self.info_label.update()
+        if self._info_str:
+            self.txt(self._info_str[:50], px + 4, py + ph - 20, "sm", MUTED)
 
-    def highlight_line(self,line_number, player,bg="darkgray", fg="blue"):
-        # Remove previous highlight
-        self.inventory_text.tag_remove("highlight", "1.0", "end")
+        self.txt("W/S:navigate  Enter/E:use", px + 4, py + ph + 4, "sm", MUTED)
 
-        def display_item(place):
-            text = self.inventory_text.get("1.0", f"{place}.end").split("\n")
-            text = text[::-1]
-            item_name = self.inventory_text.get(f"{place}.0", f"{place}.end")
-            for category in text:
-                if category in list(player.inventory.items.keys()):
-                    items = player.inventory.items[category]
-                    for item in items:
-                        if item.name == item_name:
-                            self.display_info(str(item))
+    def _draw_log(self):
+        """Show recent combat messages, fading after 4 s."""
+        now  = time.time()
+        x, y = 16, self.h // 2
+        for msg, t in zip(self._log, self._log_timer):
+            age   = now - t
+            alpha = max(0, int(255 * (1 - age / 4.0)))
+            if alpha == 0:
+                continue
+            surf = self.font["sm"].render(msg, True, TEXT)
+            surf.set_alpha(alpha)
+            self.surface.blit(surf, (x, y))
+            y += 18
 
-        # Tag format is "line.col" — col 0 to end of line
-        start = f"{line_number}.0"
-        end = f"{line_number}.end"
-        display_item(line_number)
-        self.inventory_text.tag_add("highlight", start, end)
-        self.inventory_text.tag_config("highlight", background=bg, foreground=fg)
-        return self.inventory_text.get(start, end)
+    def _draw_game_over(self):
+        overlay = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 160))
+        self.surface.blit(overlay, (0, 0))
+        y = self.h // 3
+        for line in self._go_text.split("\n"):
+            c = GAMEOVER_COL if ("GAME OVER" in line or "SCORE" in line) else TEXT
+            sz = "lg" if "GAME OVER" in line else "md"
+            self.txt(line, self.w // 2, y, sz, c, center=True)
+            y += FONT_SIZE[sz] + 10
 
-    def GAME_OVER(self,player,maze):
-        for key in USED_KEYS:
-            self.unbind_key(key)
+    # -----------------------------------------------------------------------
+    # Frame loop
+    # -----------------------------------------------------------------------
+    def tick(self):
+        """Process events + fire scheduled callbacks. Returns False if quit."""
+        self._fire_scheduled()
 
-        self.bind_key("y", lambda e: maze.new_maze(player))
-        self.bind_key("n",lambda e: self.__root.destroy())
-        self.game_over_label.place(relx=0.5, rely=0.5)
-        self.game_over_label.config(text=f"""
-              SCORE: {((player.gold // 10) + player.kills) * maze.level}
-                GAME OVER
-                TRY AGAIN?
-                  Y) (N
-        """)
+        mods  = pygame.key.get_mods()
+        shift = bool(mods & pygame.KMOD_SHIFT)
 
-    def show_level_up(self,player):
-        self.P_level.place(relx=0.5, rely=0.5)
-        self.P_level.config(state="normal")
-        self.P_level.delete("1.0", "end")
-        self.P_level.insert("end",f"LEVEL UP!, LEVEL {player.level}","bold",)
-        self.P_level.config(state="disabled")
-        time.sleep(1)
-        total_points = {"num":3}
-        incr = {"num":2}
-        def increment(change):
-            new_val = incr["num"] + change
-            if 2 < new_val < len(player.stats) - 1:
-                incr["num"] = new_val
-                self.highlight_line(incr["num"], player)
-        def get_item():
-            item_name = self.highlight_line(incr["num"], player).split(":")[0].strip()
-            total_points["num"] -= 1
-            print(f"{item_name} increased you have {total_points["num"]} points remaining")
-            player.stats[item_name] += 1
-        self.bind_key("<Up>", lambda e: increment(-1))
-        self.bind_key("<Down>", lambda e: increment(1))
-        self.bind_key("<Enter>", lambda e: get_item())
-        self.bind_key("<w>", lambda e: increment(-1))
-        self.bind_key("<s>", lambda e: increment(1))
-        self.bind_key("<e>", lambda e: get_item())
-        while total_points["num"] > 0:
-            self.inventory_text.config(state="normal")
-            self.inventory_text.delete("1.0", "end")
-            self.P_level.insert("end",
-                                f" you have {total_points} stat points choose an ability score to increase:\nattack: {player.stats["attack"]}\ndefence: {player.stats["defence"]}\nluck: {player.stats["luck"]}\nmagic_defence: {player.stats["magic_defence"]}\nmagic_attack: {player.stats["magic_attack"]}\nagility: {player.stats["agility"]}",
-                                "bold")
-            self.P_level.config(state="disabled")
-            time.sleep(1/60)
-        self.P_level.place_forget()
+        for ev in pygame.event.get():
+            if ev.type == pygame.QUIT:
+                return False
+            if ev.type == pygame.VIDEORESIZE:
+                self.w, self.h = ev.w, ev.h
+                self._screen = pygame.display.set_mode(
+                    (self.w, self.h), pygame.RESIZABLE)
+                self.surface = self._screen
+            if ev.type == pygame.KEYDOWN:
+                if ev.key == pygame.K_ESCAPE:
+                    return False
+                key = ("shift", ev.key) if shift else ev.key
+                cb  = self._keys.get(key)
+                if cb:
+                    cb()
+        return True
+
+    def flip(self):
+        pygame.display.flip()
+        self.clock.tick(60)

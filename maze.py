@@ -1,247 +1,234 @@
-from drawing import *
-from generator_ import *
-from main import main
-from pathlib import Path
+import pygame
 import random
 import sys
+from pathlib import Path
 
-sys.setrecursionlimit(2000)
+from drawing import Cell, Point
+from generator_ import generate_enemy
+
+sys.setrecursionlimit(4000)
 
 
 class Maze:
-    def __init__(self, num_rows, num_cols, win, seed=None):
-        self.__cell_size = 16
-        self.__grid_width = num_cols * self.__cell_size
-        self.__grid_height = num_rows * self.__cell_size
-        self.left = (win.x - self.__grid_width) / 2
-        self.top = (win.y - self.__grid_height) / 2
-        self.right = self.left + self.__grid_width
-        self.bottom = self.top + self.__grid_height
-        self.__brcor = Point(self.right, self.bottom)
-        self.__tlcor = Point(self.left, self.top)
-        self.num_rows = num_rows
-        self.num_cols = num_cols
-        self.__win = win
-        self.__seed = seed or random.seed()
-        self.cells = []
-        self.visible_cells = set()
-        self.level = 1
+    def __init__(self, num_rows, num_cols, win):
+        self.num_rows  = num_rows
+        self.num_cols  = num_cols
+        self._win      = win
+        self.CELL_SIZE = 16          # pixels per cell (matches your tile PNGs)
 
-    def img_finder(self):
-        try:
-            path = None
-            if self.level <= 3:
-                path = Path("assets/floors/1-3/")
-            elif self.level <= 6:
-                path = Path("assets/floors/4-6/")
-            elif self.level == 7:
-                path = Path("assets/floors/7/")
-            elif self.level == 8:
-                path = Path("assets/floors/8/")
-            elif self.level == 9:
-                path = Path("assets/floors/9/")
-            else:
-                path = Path("assets/floors/10/")
-            if not path.exists():
-                print(f"Error: The folder '{path}' does not exist.")
-                exit(1)
-            if not path.is_dir():
-                print(f"Error: '{path}' is not a directory.")
-                exit(1)
-        except Exception:
-            print(f"Error: somthing else happened.")
-            exit(1)
-        return [str(f) for f in path.iterdir() if f.is_file()]
+        # Grid world origin — centred in the window
+        grid_w = num_cols * self.CELL_SIZE
+        grid_h = num_rows * self.CELL_SIZE
+        self.origin = Point(
+            (win.w - grid_w) / 2,
+            (win.h - grid_h) / 2,
+        )
 
+        self.cells         = []
+        self.visible_cells = set()   # set of (row, col) tuples
+        self.level         = 1
 
+        # Tile cache: path → pygame.Surface
+        self._tile_cache: dict[str, pygame.Surface] = {}
+
+    # -----------------------------------------------------------------------
+    # Asset loading
+    # -----------------------------------------------------------------------
+    def _tile_dir(self):
+        lvl = self.level
+        if   lvl <= 3:  subdir = "1-3"
+        elif lvl <= 6:  subdir = "4-6"
+        elif lvl == 7:  subdir = "7"
+        elif lvl == 8:  subdir = "8"
+        elif lvl == 9:  subdir = "9"
+        else:           subdir = "10"
+        path = Path(f"assets/floors/{subdir}")
+        if not path.is_dir():
+            raise FileNotFoundError(
+                f"Floor tile directory not found: {path}\n"
+                "Make sure 'assets/' is next to main.py"
+            )
+        return path
+
+    def _load_tiles(self):
+        """Return list of pygame.Surface for current level's floor tiles."""
+        tile_dir = self._tile_dir()
+        tiles = []
+        for f in sorted(tile_dir.iterdir()):
+            if f.suffix.lower() == ".png":
+                if f.name not in self._tile_cache:
+                    img = pygame.image.load(str(f)).convert_alpha()
+                    # Scale to CELL_SIZE if the PNG differs
+                    if img.get_size() != (self.CELL_SIZE, self.CELL_SIZE):
+                        img = pygame.transform.scale(
+                            img, (self.CELL_SIZE, self.CELL_SIZE)
+                        )
+                    self._tile_cache[f.name] = img
+                tiles.append(self._tile_cache[f.name])
+        if not tiles:
+            raise FileNotFoundError(f"No PNG tiles found in {tile_dir}")
+        return tiles
+
+    # -----------------------------------------------------------------------
+    # Maze creation
+    # -----------------------------------------------------------------------
     def create_maze(self):
-        self.__win.clear()
-        self.__win.set_level(self.level)
+        self._win.set_level(self.level)
+        tiles  = self._load_tiles()
+        origin = self.origin
+        cs     = self.CELL_SIZE
+
         self.cells = []
-        curr_y = self.__tlcor.y
-        for i in range(self.num_rows):
-            curr_x = self.__tlcor.x
+        for row in range(self.num_rows):
             self.cells.append([])
-            for j in range(self.num_cols):
-                self.cells[i].append(Cell(self.__win, Point(curr_x, curr_y), Point(curr_x + self.__cell_size, curr_y + self.__cell_size)))
-                self.cells[i][j].location = [i, j]
-                icons = self.img_finder()
-                self.cells[i][j].icon = random.choice(icons)
-                self._draw_cell(i, j)
-                curr_x += self.__cell_size
-            curr_y += self.__cell_size
-        self.break_walls()
-        self.reset_visited()
+            for col in range(self.num_cols):
+                tl = Point(origin.x + col * cs, origin.y + row * cs)
+                br = Point(tl.x + cs,           tl.y + cs)
+                cell          = Cell(self._win, tl, br)
+                cell.location = [row, col]
+                cell.floor_tile = random.choice(tiles)
+                self.cells[row].append(cell)
 
-    def _draw_cell(self, i, j):
-        self.cells[i][j].draw(self, start=True)
-        self.__win.redraw()
+        self._carve_passages()
+        self._reset_visited()
 
-    def break_ent_exit(self, player_cell, wall):
-        if wall == 0:
-            self.cells[player_cell.location[0]][player_cell.location[1]].ent = True
-            self.cells[player_cell.location[0]][player_cell.location[1]].top = False
-            rand_location = random.randint(0, self.num_cols - 1)
-            self.cells[self.num_rows - 1][rand_location].exit = True
-            self.cells[self.num_rows - 1][rand_location].bottom = False
-        if wall == 1:
-            self.cells[player_cell.location[0]][player_cell.location[1]].ent = True
-            self.cells[player_cell.location[0]][player_cell.location[1]].bottom = False
-            rand_location = random.randint(0, self.num_cols - 1)
-            self.cells[0][rand_location].exit = True
-            self.cells[0][rand_location].top = False
+    def _carve_passages(self, row=0, col=0):
+        """Recursive back-tracker maze generation."""
+        self.cells[row][col].visited = True
+        neighbours = []
+        for dr, dc in [(-1,0),(1,0),(0,-1),(0,1)]:
+            r, c = row+dr, col+dc
+            if 0 <= r < self.num_rows and 0 <= c < self.num_cols:
+                if not self.cells[r][c].visited:
+                    neighbours.append((r, c, dr, dc))
+        random.shuffle(neighbours)
+        for r, c, dr, dc in neighbours:
+            if self.cells[r][c].visited:
+                continue
+            # knock down the shared wall
+            if dr == -1: self.cells[row][col].top    = False; self.cells[r][c].bottom = False
+            if dr ==  1: self.cells[row][col].bottom = False; self.cells[r][c].top    = False
+            if dc == -1: self.cells[row][col].left   = False; self.cells[r][c].right  = False
+            if dc ==  1: self.cells[row][col].right  = False; self.cells[r][c].left   = False
+            self._carve_passages(r, c)
 
-        if wall == 2:
-            self.cells[player_cell.location[0]][player_cell.location[1]].ent = True
-            self.cells[player_cell.location[0]][player_cell.location[1]].left = False
-            rand_location = random.randint(0, self.num_rows - 1)
-            self.cells[rand_location][self.num_cols - 1].exit = True
-            self.cells[rand_location][self.num_cols - 1].right = False
-        if wall == 3:
-            self.cells[player_cell.location[0]][player_cell.location[1]].ent = True
-            self.cells[player_cell.location[0]][player_cell.location[1]].right = False
-            rand_location = random.randint(0, self.num_rows - 1)
-            self.cells[rand_location][0].exit = True
-            self.cells[rand_location][0].left = False
-
-    def break_walls(self, i=0, j=0):
-        self.cells[i][j].visited = True
-        while 1:
-            possible = []
-            picks = []
-            if 0 < i < self.num_rows - 1:
-                possible.extend([[i - 1, j], [i + 1, j]])
-            elif i == 0:
-                possible.append([i + 1, j])
-            elif i == self.num_rows - 1:
-                possible.append([i - 1, j])
-            if 0 < j < self.num_cols - 1:
-                possible.extend([[i, j + 1], [i, j - 1]])
-            elif j == 0:
-                possible.append([i, j + 1])
-            elif j == self.num_cols - 1:
-                possible.append([i, j - 1])
-            for c in possible:
-                if not self.cells[c[0]][c[1]].visited:
-                    picks.append(c)
-            if len(picks) == 0:
-                self._draw_cell(i, j)
-                return
-            pick = random.choice(picks)
-            if pick[0] < i:
-                self.cells[i][j].top = False
-                self.cells[pick[0]][pick[1]].bottom = False
-            elif pick[0] > i:
-                self.cells[i][j].bottom = False
-                self.cells[pick[0]][pick[1]].top = False
-            if pick[1] > j:
-                self.cells[i][j].right = False
-                self.cells[pick[0]][pick[1]].left = False
-            elif pick[1] < j:
-                self.cells[i][j].left = False
-                self.cells[pick[0]][pick[1]].right = False
-            self.break_walls(pick[0], pick[1])
-
-    def reset_visited(self):
+    def _reset_visited(self):
         for row in self.cells:
             for cell in row:
                 cell.visited = False
 
+    # -----------------------------------------------------------------------
+    # Entrance / exit
+    # -----------------------------------------------------------------------
+    def _place_entrance_exit(self, start_cell, wall):
+        """
+        wall: 0=top  1=bottom  2=left  3=right
+        Entrance on start_cell's chosen wall; exit on opposite side.
+        """
+        r, c = start_cell.location
+        if wall == 0:
+            self.cells[r][c].ent = True;  self.cells[r][c].top    = False
+            er = self.num_rows - 1;       ec = random.randint(0, self.num_cols-1)
+            self.cells[er][ec].exit = True; self.cells[er][ec].bottom = False
+        elif wall == 1:
+            self.cells[r][c].ent = True;  self.cells[r][c].bottom = False
+            er = 0;                        ec = random.randint(0, self.num_cols-1)
+            self.cells[er][ec].exit = True; self.cells[er][ec].top  = False
+        elif wall == 2:
+            self.cells[r][c].ent = True;  self.cells[r][c].left   = False
+            er = random.randint(0, self.num_rows-1); ec = self.num_cols - 1
+            self.cells[er][ec].exit = True; self.cells[er][ec].right = False
+        else:
+            self.cells[r][c].ent = True;  self.cells[r][c].right  = False
+            er = random.randint(0, self.num_rows-1); ec = 0
+            self.cells[er][ec].exit = True; self.cells[er][ec].left  = False
+
+    # -----------------------------------------------------------------------
+    # Player / monster init
+    # -----------------------------------------------------------------------
     def player_init(self, player):
         player.is_player = True
         wall = random.randint(0, 3)
         if wall == 0:
-            location = random.randint(0, self.num_cols - 1)
-            self.cells[0][location].player = True
-            player.location = self.cells[0][location]
+            col = random.randint(0, self.num_cols-1)
+            cell = self.cells[0][col]
             player.facing = "down"
-            self.break_ent_exit(self.cells[0][location], wall)
-
         elif wall == 1:
-            location = random.randint(0, self.num_cols - 1)
-            self.cells[self.num_rows - 1][location].player = True
-            player.location = self.cells[self.num_rows - 1][location]
+            col = random.randint(0, self.num_cols-1)
+            cell = self.cells[self.num_rows-1][col]
             player.facing = "up"
-            self.break_ent_exit(self.cells[self.num_rows - 1][location], wall)
-
         elif wall == 2:
-            location = random.randint(0, self.num_rows - 1)
-            self.cells[location][0].player = True
-            player.location = self.cells[location][0]
+            row = random.randint(0, self.num_rows-1)
+            cell = self.cells[row][0]
             player.facing = "right"
-            self.break_ent_exit(self.cells[location][0], wall)
-
         else:
-            location = random.randint(0, self.num_rows - 1)
-            self.cells[location][self.num_cols - 1].player = True
-            player.location = self.cells[location][self.num_cols - 1]
+            row = random.randint(0, self.num_rows-1)
+            cell = self.cells[row][self.num_cols-1]
             player.facing = "left"
-            self.break_ent_exit(self.cells[location][self.num_cols - 1], wall)
+
+        cell.set_player(player)
+        player.location = cell
+        self._place_entrance_exit(cell, wall)
 
     def monsters_init(self):
-        possible = []
-        num_enemy = min(self.level * random.randint(10, 30), (self.num_rows * self.num_cols) / 2)
-        for row in self.cells:
-            for cell in row:
-                if not cell.player and not (cell.location[0], cell.location[1]) in self.visible_cells:
-                    possible.append(cell)
-        while num_enemy > 0:
-            pick = random.choice(possible)
-            if pick.enemy:
-                possible.remove(pick)
+        max_enemies = int(min(
+            self.level * random.randint(10, 30),
+            (self.num_rows * self.num_cols) / 2
+        ))
+        candidates = [
+            cell for row in self.cells for cell in row
+            if not cell.player
+            and (cell.location[0], cell.location[1]) not in self.visible_cells
+        ]
+        random.shuffle(candidates)
+        placed = 0
+        for cell in candidates:
+            if placed >= max_enemies:
+                break
+            if cell.enemy:
                 continue
-            else:
-                self.cells[pick.location[0]][pick.location[1]].enemy = True
-                self.cells[pick.location[0]][pick.location[1]].enemy_entity = generate_enemy(min(self.level, 10))
-                self.cells[pick.location[0]][pick.location[1]].enemy_entity.location = self.cells[pick.location[0]][pick.location[1]]
-                num_enemy -= 1
-                possible.remove(pick)
+            enemy = generate_enemy(min(self.level, 10))
+            enemy.location = cell
+            cell.set_enemy(enemy)
+            placed += 1
 
+    # -----------------------------------------------------------------------
+    # Visibility (BFS through open walls)
+    # -----------------------------------------------------------------------
     def update_visibility(self, player):
-
         radius = 2
-        start_y, start_x = player.location.location
-        self.cells[start_y][start_x].visited = True
-
-        # clear previous visibility
+        sy, sx = player.location.location
+        self.cells[sy][sx].visited = True
         self.visible_cells = set()
-        queue = [(start_y, start_x, 0)]
-
-        directions = {
-            "up": (-1, 0),
-            "down": (1, 0),
-            "left": (0, -1),
-            "right": (0, 1)
+        queue = [(sy, sx, 0)]
+        dirs  = {
+            "up":    (-1,  0),
+            "down":  ( 1,  0),
+            "left":  ( 0, -1),
+            "right": ( 0,  1),
         }
-
         while queue:
             y, x, dist = queue.pop(0)
-
             if (y, x) in self.visible_cells:
                 continue
             self.visible_cells.add((y, x))
-            # stop expanding past radius
             if dist >= radius:
                 continue
-
-            curr_cell = self.cells[y][x]
-
-            for direction, (dy, dx) in directions.items():
-
-                if curr_cell.can_move(direction, self) != "bump":
-
-                    ny = y + dy
-                    nx = x + dx
-
+            for direction, (dy, dx) in dirs.items():
+                if self.cells[y][x].can_move(direction, self) != "bump":
+                    ny, nx = y+dy, x+dx
                     if 0 <= ny < self.num_rows and 0 <= nx < self.num_cols:
-                        queue.append((ny, nx, dist + 1))
+                        queue.append((ny, nx, dist+1))
 
-    def new_maze(self,player):
+    # -----------------------------------------------------------------------
+    # Level progression
+    # -----------------------------------------------------------------------
+    def next_level(self, player):
+        from main import main
+        self.level += 1
         self.cells = []
         self.visible_cells = set()
-        self.level = 1
-        main(player,self.__win)
-
+        main(player, self._win, self)
 
     def level_up(self, player):
-        self.__win.show_level_up(player)
+        self._win.show_level_up(player)

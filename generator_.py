@@ -14,19 +14,14 @@ def weighted_choice(weighted_dict):
     return None
 
 
-def generate_weapon_loot(mob_type):
-    list_weapons = list(BASE_WEAPONS.keys())
+def generate_weapon_loot(mob_type,weapon_name=""):
     if mob_type == "player":
-        base_name = input(f"select one weapon\n{'\n'.join(list_weapons)}")
         rarity = ""
-        if base_name.lower().strip() in list_weapons:
-            base_name = base_name.lower().strip()
-        else:
-            print("invalid weapon")
-            return generate_weapon_loot(mob_type)
     else:
-        base_name = weighted_choice(MOB_WEAPON_PREFERENCES[mob_type])
         rarity = weighted_choice(RARITY)
+    base_name = weighted_choice(MOB_WEAPON_PREFERENCES[mob_type])
+    if weapon_name:
+        base_name = weapon_name
     quality_name = weighted_choice(QUALITY_WEIGHT[mob_type]["weapon"])
 
     base = copy.deepcopy(BASE_WEAPONS[base_name])

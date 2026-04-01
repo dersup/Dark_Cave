@@ -196,11 +196,9 @@ class Entity:
 			self.remove_item(item)
 
 	def show_inventory(self, win):
+		win.inventory_show = not win.inventory_show
 		if win.inventory_show:
-			win.inventory_show = False
-		else:
-			win.inventory_show = True
-		win.player_labels(self)
+			win.set_inventory(self)
 
 	# ------------------------
 	# Item Usage
@@ -359,7 +357,7 @@ class Entity:
 		elif movement != "move":
 			print(movement)
 			if "continue" in movement:
-				maze.new_maze(self)
+				maze.next_level(self)
 			if on_complete:
 				on_complete()
 			return
