@@ -1,18 +1,20 @@
 import random
 import re
+from email import message
 
 from classes import *
 from constants import *
 
 
 def inspect(target):
-	attrs = vars(target)
-	class_name = type(target).__name__
-	allowed = INSPECT_WHITELIST.get(class_name, [])
-	print(f"\n=== {class_name} ===")
-	for key, value in attrs.items():
-		if key in allowed:
-			print(f"  {key}: {value}")
+    class_name = type(target).__name__
+    allowed = INSPECT_WHITELIST.get(class_name, [])
+    lines = [
+        f"\n  {k}: {v}" for k, v in vars(target).items()
+        if k in allowed and v
+        and not (isinstance(v, Inventory) and v.length() == 0)
+    ]
+    return f"\n=== {class_name} ===" + "".join(lines) if lines else "Nothing found"
 
 
 def next_cell(row, col, direction):
@@ -28,10 +30,12 @@ def next_cell(row, col, direction):
 
 
 class Entity:
-	def __init__(self, name, max_health, armor_=Armour(), weapon_=Weapon()):
+	def __init__(self, name, max_health, max_mana, armor_=Armour(), weapon_=Weapon()):
 		self.name = name
 		self.max_health = max_health
 		self.health = max_health
+		self.max_mana = max_mana
+		self.mana = max_mana
 		self.stats = {
 			"attack": 0,
 			"defence": 0,
@@ -70,6 +74,18 @@ class Entity:
 	# ------------------------
 	# Combat
 	# ------------------------
+	def cast_spell(self,spell,maze):
+		if not isinstance(self.weapon,Staff):
+			return "You dont have a Staff."
+		if not spell in self.weapon.spells:
+			return "You don't have that spell equipped."
+		if self.mana < spell.cost:
+			return f"Not enough mana to cast {spell.spell_name}!"
+
+		self.mana -= spell.cost
+		message = f"You cast {spell.spell_name}"
+		message += self.throw(spell,maze)
+		return message
 
 	def take_damage(self, elements:list,extra_dam=0,mod=1.0)-> dict:
 		total = {}
@@ -111,8 +127,13 @@ class Entity:
 					dam_taken = enemy.take_damage(weapon_.elements)
 				else:
 					dam_taken = enemy.take_damage(weapon_.elements,0.5)
+
 		else:
-			attack_total = roll + weapon_.attack
+			if isinstance(weapon_, Magic):
+				staff = self.get_equipped_staff()
+				attack_total = roll + staff.attack
+			else:
+				attack_total = roll + weapon_.attack
 
 			enemy_ac = 10 + enemy.stats["defence"]
 
@@ -139,6 +160,13 @@ class Entity:
 				return killed(self,enemy)
 		else:
 			return f"{enemy.name} took no damage"
+
+	def get_equipped_staff(self):
+		return next((i for i in self.inventory.items["Equipped"] if isinstance(i, Staff)), None)
+
+	def get_spells(self):
+		staff = self.get_equipped_staff()
+		return staff.spells
 
 	# ------------------------
 	# Inventory
@@ -182,7 +210,8 @@ class Entity:
 		for category in list(target.inventory.items.keys()):
 			if target.inventory.items[category] and category != "Equipped":
 				self.add_items_to_inventory(target.inventory.items[category])
-				message1 += f"adding{target.inventory.items[category]} to inventory"
+				for item in target.inventory.items[category]:
+					message1 += f"adding{item.name} to inventory"
 		if target.gold > 0:
 			self.gold += target.gold
 			message2 = f"adding gold: {target.gold}"
@@ -210,36 +239,40 @@ class Entity:
 		if win.inventory_show:
 			win.set_inventory(self)
 
+	def show_spell_list(self, win):
+		win.spell_list_show = not win.spell_list_show
+		if win.spell_list_show:
+			win.set_spell_list(self)
+
 	# ------------------------
 	# Item Usage
 	# ------------------------
 
 	def use_item(self, item_name, maze=None):
-		message =""
+		message_ = ""
 		pattern = re.compile(rf"{item_name}", flags=re.IGNORECASE)
 		for category, items in self.inventory.items.items():
 			for item_ in items:
 				match = pattern.search(item_.name)
 				if match:
 					if isinstance(item_, Healing):
-						if "healing potion" in item_.name.lower():
-							self.health = min(self.max_health, self.health + item_.healing[0])
-							message = f"{self.name} heals to {self.health}/{self.max_health}"
+						self.health = min(self.max_health, self.health + item_.healing[0])
+						message_ = f"{self.name} heals to {self.health}/{self.max_health}"
 						self.remove_item(item_)
-						return message
+						return message_
 					elif isinstance(item_, Throwing):
 						if "bomb" in item_.name.lower():
 							if not maze:
 								return "you need to see where your throwing"
-							message = self.throw(item_, maze)
+							message_ = self.throw(item_, maze)
 						self.remove_item(item_)
-						return message
+						return message_
 					elif isinstance(item_, Weapon):
-						message = self.equip_weapon(item_)
-						return message
+						message_ = self.equip_weapon(item_)
+						return message_
 					elif isinstance(item_, Armour):
-						message = self.equip_armor(item_)
-						return message
+						message_ = self.equip_armor(item_)
+						return message_
 
 		return "Item not found."
 
@@ -304,7 +337,9 @@ class Entity:
 			if curr_cell.can_move(self.facing, maze) == "move":
 				row, col = next_cell(row_old, col_old, self.facing)
 				if not((0 < row < maze.num_rows - 1) and (0 < col < maze.num_cols - 1)):
-					return f"you tossed {item} outside"
+					if isinstance(item,Magic):
+						return f"{item.spell_name} disappears!"
+					return f"you tossed {item.name} outside"
 				if curr_cell.enemy_entity:
 					return self.attack_target(curr_cell.enemy_entity, item, maze)
 			if "bomb" in item.name.lower():
@@ -347,30 +382,29 @@ class Entity:
 		if not direction:
 			if on_complete:
 				on_complete()
-			return
+			return ""
 		row_old, col_old = self.location.location
 		row, col = next_cell(row_old, col_old, direction)
 		movement = maze.cells[row_old][col_old].can_move(direction, maze)
 
 		if movement == "bump":
-			print("You bump into a wall.")
 			if on_complete:
 				on_complete()
-			return
+			return "You bump into a wall."
 		elif movement != "move":
-			print(movement)
+			message = movement
 			if "continue" in movement:
 				maze.next_level(self)
 			if on_complete:
 				on_complete()
-			return
+			return message
 
 		if 0 <= row < maze.num_rows and 0 <= col < maze.num_cols:
 			if maze.cells[row][col].enemy:
-				self.attack_target(maze.cells[row][col].enemy_entity, self.weapon, maze)
+				attack = self.attack_target(maze.cells[row][col].enemy_entity, self.weapon, maze)
 				if on_complete:
 					on_complete()
-				return
+				return attack
 			maze.cells[row_old][col_old].ani_move(maze.cells[row][col], duration=200, on_complete=on_complete)
 			maze.cells[row_old][col_old].remove_player()
 			maze.cells[row][col].set_player(self)

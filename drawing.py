@@ -1,5 +1,6 @@
 import pygame
 from classes import *
+from constants import COLOURS
 
 # ---------------------------------------------------------------------------
 # Colour palette
@@ -100,9 +101,9 @@ class Cell:
 
     def _wall(self, p1, p2, solid, dim=False):
         if solid:
-            c = (80, 75, 70) if dim else (200, 195, 185)
+            c = COLOURS["gray"] if dim else COLOURS["white"]
         else:
-            c = (0, 0, 0)
+            c = COLOURS["black"]
         pygame.draw.line(
             self._win.surface, c,
             self._screen(p1), self._screen(p2), 2
@@ -126,7 +127,7 @@ class Cell:
                 self._win.surface.blit(self.floor_tile, (sx, sy))
             else:  # visited but not visible — draw darkened
                 dark = self.floor_tile.copy()
-                dark.fill((0, 0, 0, 170), special_flags=pygame.BLEND_RGBA_MULT)
+                dark.fill(COLOURS["gray"], special_flags=pygame.BLEND_RGBA_MULT)
                 self._win.surface.blit(dark, (sx, sy))
 
         # Walls
@@ -143,15 +144,28 @@ class Cell:
 
             # Player / enemy (if not mid-animation)
             if self.player_entity and self._anim_who != "player":
-                self._dot(self.cent, 5, "blue")
+                # Also suppress if another cell is animating the player toward us
+                animating = any(
+                    c._anim_who == "player" for c in self._win.animating_cells if c is not self
+                )
+                if not animating:
+                    self._dot(self.cent, 7, "blue",player=self.player_entity)
             if self.enemy_entity and self._anim_who != "enemy":
-                self._draw_enemy_dot(self.cent)
+                animating = any(
+                    c._anim_who == "enemy" for c in self._win.animating_cells if c is not self
+                )
+                if not animating:
+                    self._draw_enemy_dot(self.cent)
 
-    def _dot(self, pt, r, fill, outline=None):
+    def _dot(self, pt, r, fill, outline=None,player=None):
         cx, cy = self._screen(pt)
+        if player:
+            offsets = {"up": (0, -5), "down": (0, 5), "left": (-5, 0), "right": (5, 0)}
+            dx, dy = offsets.get(player.facing, (0, 0))
+            pygame.draw.circle(self._win.surface, "red", (cx + dx, cy + dy), 4)
         pygame.draw.circle(self._win.surface, col(fill), (cx, cy), r)
         if outline:
-            pygame.draw.circle(self._win.surface, col(outline), (cx, cy), r, 2)
+            pygame.draw.circle(self._win.surface, col(outline), (cx, cy), r, 3)
 
     def _draw_enemy_dot(self, pt):
         name = self.enemy_entity.name.lower()
@@ -160,14 +174,14 @@ class Cell:
         elif "epic"      in name: outline = "blue"
         elif "legendary" in name: outline = "gold"
 
-        if   "skeleton"  in name: fill, r = "gray",       5
-        elif "orc"       in name: fill, r = "dark green", 5
-        elif "goblin"    in name: fill, r = "green",      3
-        elif "troll"     in name: fill, r = "brown",      5
-        elif "wraith"    in name: fill, r = "white",      5
-        elif "vampire"   in name: fill, r = "red",        3
-        elif "dark mage" in name: fill, r = "purple",     3
-        else:                     fill, r = "gray",       4
+        if   "skeleton"  in name: fill, r = "gray",       7
+        elif "orc"       in name: fill, r = "dark_green", 12
+        elif "goblin"    in name: fill, r = "green",      5
+        elif "troll"     in name: fill, r = "brown",      12
+        elif "wraith"    in name: fill, r = "white",      7
+        elif "vampire"   in name: fill, r = "red",        7
+        elif "dark mage" in name: fill, r = "purple",     7
+        else:                     fill, r = "gray",       10
         self._dot(pt, r, fill, outline)
 
     # -----------------------------------------------------------------------
@@ -183,7 +197,7 @@ class Cell:
         self._anim_who = "player" if self.player_entity else "enemy"
         self._anim_cb  = on_complete
 
-    def tick_anim(self):
+    def tick_anim(self,player):
         """Call once per frame. Draws moving dot; fires callback when done."""
         import time
         if self._anim_t0 is None:
@@ -195,7 +209,8 @@ class Cell:
         cy = self._anim_src.y + (self._anim_dst.y - self._anim_src.y) * t_ease
         pt = Point(cx, cy)
         if self._anim_who == "player":
-            self._dot(pt, 5, "blue")
+            self._win.center_on_point(cx,cy)
+            self._dot(pt, 7, "blue",player=player)
         elif self.enemy_entity:
             # temporarily swap cent for the dot helper
             real = self.cent

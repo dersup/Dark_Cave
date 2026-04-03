@@ -2,21 +2,20 @@
 The Dark Cave — Pygame edition
 ─────────────────────────────
 Desktop:  python main.py
-LAN web:  bash serve_lan.ps1   (runs pygbag then http.server)
 """
 import pygame
 import sys
 
-from constants import BASE_WEAPONS, COLOURS
+from constants import BASE_WEAPONS, COLOURS, BASE_STAFFS
 from windows    import Windows
 from maze       import Maze
 from entity     import Entity, next_cell, inspect
 from generator_ import generate_weapon_loot, generate_armor_loot, \
-                       generate_items_loot, name_gen
+    generate_items_loot, name_gen, generate_staff
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  Character-creation screens (blocking Pygame sub-loops)
+#  Character-creation screens
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _menu(win: Windows, prompt: str, options: list[str]) -> str:
@@ -24,13 +23,13 @@ def _menu(win: Windows, prompt: str, options: list[str]) -> str:
     cursor = [0]
 
     while True:
-        win.surface.fill((10, 8, 12))
-        win.txt(prompt, win.w // 2, win.h // 4, "lg", (160, 130, 255), center=True)
+        win.surface.fill(COLOURS["dark_gray"])
+        win.txt(prompt, win.w // 2, win.h // 4, "lg", COLOURS["purple"], center=True)
         for i, opt in enumerate(options):
             pre = "▶  " if i == cursor[0] else "   "
-            c   = (120, 180, 255) if i == cursor[0] else (200, 195, 180)
+            c   = COLOURS["purple"] if i == cursor[0] else COLOURS["orange"]
             win.txt(pre + opt, win.w // 2 - 80, win.h // 4 + 60 + i * 32, "md", c)
-        win.txt("↑↓ / WS  navigate       Enter  confirm", win.w // 2, win.h * 3 // 4, "sm", (110, 100, 90), center=True)
+        win.txt("Up/Down / W/S  navigate       Enter  confirm", win.w // 2, win.h * 3 // 4, "sm", COLOURS["gray"], center=True)
         pygame.display.flip()
         win.clock.tick(30)
 
@@ -52,12 +51,12 @@ def _text_input(win: Windows, prompt: str, placeholder: str = "") -> str:
     timer   = [0]
 
     while True:
-        win.surface.fill((10, 8, 12))
-        win.txt(prompt, win.w // 2, win.h // 2 - 50, "lg", (160, 130, 255), center=True)
+        win.surface.fill(COLOURS["dark_gray"])
+        win.txt(prompt, win.w // 2, win.h // 2 - 50, "lg", COLOURS["purple"], center=True)
         display = (buf or placeholder) + ("|" if blink[0] else " ")
-        c = (120, 180, 255) if buf else (90, 85, 80)
+        c = COLOURS["gray"] if buf else COLOURS["dark_gray"]
         win.txt(display, win.w // 2, win.h // 2, "md", c, center=True)
-        win.txt("Enter to confirm", win.w // 2, win.h // 2 + 36, "sm", (110, 100, 90), center=True)
+        win.txt("Enter to confirm", win.w // 2, win.h // 2 + 36, "sm", COLOURS["gray"], center=True)
         pygame.display.flip()
 
         dt       = win.clock.tick(30)
@@ -91,8 +90,8 @@ def _stat_allocation(win: Windows, player: Entity):
 
     while True:
         remaining = total - sum(values.values())
-        win.surface.fill((10, 8, 12))
-        win.txt(f"Distribute {remaining} stat point(s)", win.w // 2, win.h // 6, "lg", (160, 130, 255), center=True)
+        win.surface.fill(COLOURS["black"])
+        win.txt(f"Distribute {remaining} stat point(s)", win.w // 2, win.h // 6, "lg", COLOURS["purple"], center=True)
         for i, stat in enumerate(stats):
             y   = win.h // 6 + 55 + i * 34
             pre = "▶ " if i == cursor[0] else "  "
@@ -150,9 +149,15 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         gender  = gender_choice.lower().replace("-", " ")
         default = name_gen(gender if gender in ("male","female") else "")
         name    = _text_input(win, "What is your hero's name?", default)
-        weapon  = generate_weapon_loot("player",_menu(win,"choose your weapon",list(BASE_WEAPONS.keys())))
+        available = list(BASE_WEAPONS.keys())
+        available.append(list(BASE_STAFFS.keys())[0])
+        weapon  = _menu(win,"choose your weapon", available)
+        if weapon == "apprentice staff":
+            weapon = generate_staff("player","apprentice staff")
+        else:
+            weapon = generate_weapon_loot("player",weapon)
         armor   = generate_armor_loot("player")
-        player  = Entity(name, 100, weapon_=weapon, armor_=armor)
+        player  = Entity(name, 100, 100, armor_=armor, weapon_=weapon)
         _stat_allocation(win, player)
         for _ in range(2):
             player.add_to_inventory(generate_items_loot("player"))
@@ -167,7 +172,8 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         maze.origin  = maze.origin    # unchanged
     maze.create_maze()
     maze.player_init(player)
-    win.center_on(player)
+    x,y = player.location.cent.x, player.location.cent.y
+    win.center_on_point(x,y)
     maze.monsters_init()
     maze.update_visibility(player)
     win.set_player_stats(player)
@@ -179,7 +185,6 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
     # ═════════════════════════════════════════════════════════════════════════
     #  Game-logic helpers
     # ═════════════════════════════════════════════════════════════════════════
-
     def redraw():
         win.surface.fill((10, 8, 12))
         for row in maze.cells:
@@ -187,7 +192,7 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
                 cell.draw(maze)
         # tick any live animations
         for cell in list(win.animating_cells):
-            still_running = cell.tick_anim()
+            still_running = cell.tick_anim(player)
             if not still_running:
                 win.animating_cells.remove(cell)
         win.render()
@@ -197,7 +202,8 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         nonlocal busy
         busy = False
         maze.update_visibility(player)
-        win.center_on(player)
+        x_,y_ = player.location.cent.x, player.location.cent.y
+        win.center_on_point(x_, y_)
         win.set_player_stats(player)
         do_enemy_turn()
 
@@ -227,6 +233,7 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         busy = True
         old_cell = player.location
         message = player.move(direction, maze, on_complete=after_player_move)
+        win.log(message)
         # register source cell for animation ticking
         if old_cell not in win.animating_cells:
             win.animating_cells.append(old_cell)
@@ -239,25 +246,37 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         nr, nc = next_cell(r, c, player.facing)
         if 0 <= nr < maze.num_rows and 0 <= nc < maze.num_cols:
             target = maze.cells[nr][nc]
-            player.get_cell_inventory(target)
+            items, gold = player.get_cell_inventory(target)
+            if not isinstance(items, list):
+                items = [items]
             win.set_player_stats(player)
-            win.log(f"Picked up items from ({nr},{nc})")
+            for item in items:
+                win.log(f"{item}")
+            win.log(gold)
 
     def inspect_cell():
         r, c = player.location.location
         nr, nc = next_cell(r, c, player.facing)
         if 0 <= nr < maze.num_rows and 0 <= nc < maze.num_cols:
-            inspect(maze.cells[nr][nc])
+            win.log(inspect(maze.cells[nr][nc]))
 
     # ── Inventory ────────────────────────────────────────────────────────────
 
-    def use_selected():
-        item_name = win.inv_selected_name()
+    def use_selected(type="item"):
+        if type == "spell":
+            item_name = win.spell_selected_name()
+        else:
+            item_name = win.inv_selected_name()
         if item_name:
-            player.use_item(item_name, maze)
-            win.set_inventory(player)
+            if type == "spell":
+                action = player.cast_spell(item_name,maze)
+                win.set_spell_list(player)
+            else:
+                action = player.use_item(item_name, maze)
+                win.log(f"Used: {item_name}")
+                win.set_inventory(player)
             win.set_player_stats(player)
-            win.log(f"Used: {item_name}")
+            win.log(action)
             do_enemy_turn()
 
     def open_inventory():
@@ -266,6 +285,22 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
             bind_inventory()
         else:
             bind_game()
+    def open_spell_list():
+        player.show_spell_list(win)
+        if win.spell_list_show:
+            bind_spell_list()
+        else:
+            bind_game()
+
+    def bind_spell_list():
+        win.unbind_all()
+        win.bind(pygame.K_UP, lambda: win.spell_cursor_move(-1))
+        win.bind(pygame.K_DOWN, lambda: win.spell_cursor_move(1))
+        win.bind(pygame.K_w, lambda: win.spell_cursor_move(-1))
+        win.bind(pygame.K_s, lambda: win.spell_cursor_move(1))
+        win.bind(pygame.K_RETURN, use_selected)
+        win.bind(pygame.K_e, use_selected)
+        win.bind(pygame.K_c, open_spell_list)
 
     def bind_inventory():
         win.unbind_all()
@@ -298,6 +333,7 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         win.bind(pygame.K_a,     lambda: move("left"))
         win.bind(pygame.K_d,     lambda: move("right"))
         # Actions
+        win.bind(pygame.K_c,     open_spell_list)
         win.bind(pygame.K_e,     pickup)
         win.bind(pygame.K_j,     inspect_cell)
         win.bind(pygame.K_i,     open_inventory)

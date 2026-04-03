@@ -49,6 +49,9 @@ class Windows:
         self._hp_str     = "HP: 0/0"
         self._gold_str   = "Gold: 0"
         self.inventory_show = False
+        self.spell_list_show = False
+        self.spell_list = []
+        self.spell_list_cursor = 0
         self._inv_lines  = []        # list of (text, is_header)
         self._inv_cursor = 0
         self._info_str   = ""
@@ -73,9 +76,9 @@ class Windows:
     def camera(self):
         return self._camera_x, self._camera_y
 
-    def center_on(self, player):
-        self._camera_x = self.w / 2 - player.location.cent.x
-        self._camera_y = self.h / 2 - player.location.cent.y
+    def center_on_point(self, x,y):
+        self._camera_x = self.w / 2 - x
+        self._camera_y = self.h / 2 - y
 
     # -----------------------------------------------------------------------
     # Key bindings  (clean pygame — no Tkinter strings)
@@ -133,6 +136,15 @@ class Windows:
             if not s or s == "-------------":
                 continue
             self._inv_lines.append((s, s in HEADERS))
+
+    def set_spell_list(self, player):
+        HEADER = "SPELLS"
+        self._inv_lines = []
+        for line in str(player.get_spells()).split("\n"):
+            s = line.strip()
+            if not s or s == "-------------":
+                continue
+            self._inv_lines.append((s, s in HEADER))
 
     # -----------------------------------------------------------------------
     # Level-up screen (blocking sub-loop)
@@ -205,6 +217,26 @@ class Windows:
             return self._inv_lines[self._inv_cursor][0].split("(")[0].strip()
         return ""
 
+    def spell_cursor_move(self, delta):
+        n = len(self.spell_list)
+        if n == 0:
+            return
+        new = self.spell_list_cursor + delta
+        new = max(0, min(new, n - 1))
+        # skip headers
+        while 0 <= new < n and self.spell_list[new][1]:
+            new += delta
+        if 0 <= new < n:
+            self.spell_list_cursor = new
+            text, _ = self.spell_list[new]
+            self._info_str = text
+
+    def spell_selected_name(self):
+        if 0 <= self.spell_list_cursor < len(self.spell_list):
+            return self.spell_list[self.spell_list_cursor][0].split("(")[0].strip()
+        return ""
+
+
     # -----------------------------------------------------------------------
     # Main render pass
     # -----------------------------------------------------------------------
@@ -216,6 +248,8 @@ class Windows:
         self._draw_log()
         if self._game_over:
             self._draw_game_over()
+        if self.spell_list_show:
+            self._draw_spell_list()
 
     def txt(self, text, x, y, size="md", colour=TEXT, center=False):
         surf = self.font[size].render(text, True, colour)
@@ -266,6 +300,38 @@ class Windows:
             self.txt(self._info_str[:50], px + 4, py + ph - 20, "sm", MUTED)
 
         self.txt("W/S:navigate  Enter/E:use", px + 4, py + ph + 4, "sm", MUTED)
+
+    def _draw_spell_list(self):
+        pw, ph = 300, min(self.h - 120, len(self.spell_list) * 20 + 80)
+        px, py = (self.w - pw) // 2, 50
+
+        panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
+        panel.fill(PANEL)
+        self.surface.blit(panel, (px, py))
+        pygame.draw.rect(self.surface, BORDER, (px, py, pw, ph), 1)
+
+        self.txt("spells  (c to close)", px + 10, py + 8, "md", LEVEL_COL)
+        pygame.draw.line(self.surface, BORDER, (px, py+30), (px+pw, py+30), 1)
+
+        y = py + 36
+        for i, (text, is_hdr) in enumerate(self.spell_list):
+            if y > py + ph - 24:
+                break
+            label = text.split("(")[0].strip()
+            if is_hdr:
+                self.txt(label, px + 10, y, "sm", GOLD)
+            elif i == self.spell_list_cursor:
+                pygame.draw.rect(self.surface, HIGHLIGHT_BG,
+                                 (px+2, y-1, pw-4, 18))
+                self.txt(label, px + 10, y, "sm", HIGHLIGHT_FG)
+            else:
+                self.txt(label, px + 10, y, "sm", TEXT)
+            y += 20
+
+        if self._info_str:
+            self.txt(self._info_str[:50], px + 4, py + ph - 20, "sm", MUTED)
+
+        self.txt("W/S:navigate  Enter/E:cast", px + 4, py + ph + 4, "sm", MUTED)
 
     def _draw_log(self):
         """Show recent combat messages, fading after 4 s."""

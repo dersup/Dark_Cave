@@ -126,6 +126,22 @@ class Weapon(Item):
         return hash((self.name, self.attack))
 
 
+class Staff(Weapon):
+    def __init__(self, in_name, gold=0, attack=-1, elements=[Elements()], spells=[], description=""):
+        super().__init__(in_name=in_name, gold=gold, attack=attack, elements=elements, description=description)
+        self.spells = spells  # list of Magic
+
+    def __repr__(self):
+        spell_names = ", ".join(s.spell_name for s in self.spells)
+        return f"{self.name} (DMG: {self.elements}, ATK: {self.attack}, G: {self.value}) Spells: [{spell_names}] {self.description}"
+
+    def __eq__(self, other):
+        return isinstance(other, Staff) and self.name == other.name and self.spells == other.spells
+
+    def __hash__(self):
+        return hash((self.name, self.attack, tuple(self.spells)))
+
+
 class Throwing(Weapon):
     def __init__(self,in_name, distance: int, gold: int, elements: list, attack=0, description=""):
         super().__init__(in_name=in_name, gold = gold, attack=attack, elements=elements, description=description)
@@ -182,12 +198,21 @@ class Armour(Item):
 
 
 class Magic:
-    def __init__(self,spell_name:str,elements:list, spell_description:str):
-        self.spell_name = spell_name
-        self.elements = elements
+    def __init__(self, spell_name: str, elements: list, spell_description: str, cost=10, distance=1):
+        self.spell_name  = spell_name
+        self.elements    = elements
         self.spell_description = spell_description
+        self.cost        = cost     # mana cost
+        self.distance    = distance # max range in tiles
+
     def __repr__(self):
-        return f"{self.spell_name} ({self.elements}) {self.spell_description}"
+        return f"{self.spell_name} ({self.elements}) MP:{self.cost} Range:{self.distance} — {self.spell_description}"
+
+    def __eq__(self, other):
+        return isinstance(other, Magic) and self.spell_name == other.spell_name
+
+    def __hash__(self):
+        return hash(self.spell_name)
 
 
 class Inventory:
