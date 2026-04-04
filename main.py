@@ -1,8 +1,14 @@
-"""
-The Dark Cave — Pygame edition
-─────────────────────────────
-Desktop:  python main.py
-"""
+
+#The Dark Cave — Pygame edition
+#------------------------------
+#Desktop:  python main.py
+
+# Save / Load
+#------------------------------
+#  F5   Save game
+#  F9   Load game  (only from the main menu or game-over screen)
+#  Save file lives at  saves/savegame.json
+
 import pygame
 import sys
 
@@ -12,11 +18,12 @@ from maze       import Maze
 from entity     import Entity, next_cell, inspect
 from generator_ import generate_weapon_loot, generate_armor_loot, \
     generate_items_loot, name_gen, generate_staff
+from save_load  import save_game, load_game, save_exists, delete_save
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 #  Character-creation screens
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 
 def _menu(win: Windows, prompt: str, options: list[str]) -> str:
     """Arrow-key / WS selection menu. Returns chosen string."""
@@ -125,13 +132,72 @@ def _stat_allocation(win: Windows, player: Entity):
                         return
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+#  Start menu  (new game / continue)
+# ===============================================================================
+
+def start_menu(win: Windows) -> tuple:
+#    Show the start screen.
+#    Returns (player, maze) where either or both may be None
+#    (None, None  → new game;  (player, maze) → loaded save).
+
+    has_save = save_exists()
+    options  = ["Continue", "New Game", "Quit"] if has_save \
+               else ["New Game", "Quit"]
+    cursor = [0]
+
+    while True:
+        win.surface.fill(COLOURS["dark_gray"])
+        win.txt("THE DARK CAVE", win.w // 2, win.h // 5, "lg", COLOURS["purple"], center=True)
+        if has_save:
+            win.txt("A save file was found.", win.w // 2, win.h // 5 + 36, "sm", COLOURS["gray"], center=True)
+        win.txt("F9 — Load save    F5 — (in-game save)", win.w // 2, win.h * 4 // 5, "sm", COLOURS["gray"], center=True)
+
+        for i, opt in enumerate(options):
+            pre = "▶  " if i == cursor[0] else "   "
+            c   = COLOURS["purple"] if i == cursor[0] else COLOURS["orange"]
+            win.txt(pre + opt, win.w // 2 - 60, win.h // 3 + i * 40, "md", c)
+
+        pygame.display.flip()
+        win.clock.tick(30)
+
+        for ev in pygame.event.get():
+            if ev.type == pygame.QUIT:
+                pygame.quit(); sys.exit()
+            if ev.type == pygame.KEYDOWN:
+                if ev.key == pygame.K_ESCAPE:
+                    pygame.quit();
+                    sys.exit()
+                elif ev.key in (pygame.K_UP, pygame.K_w):
+                    cursor[0] = (cursor[0] - 1) % len(options)
+                elif ev.key in (pygame.K_DOWN, pygame.K_s):
+                    cursor[0] = (cursor[0] + 1) % len(options)
+                elif ev.key == pygame.K_RETURN:
+                    choice = options[cursor[0]]
+                    if choice == "Continue":
+                        player, maze = load_game(win)
+                        if player and maze:
+                            return player, maze
+                        # Corrupted / missing — fall through to new game
+                        win.log("Save file could not be loaded. Starting new game.")
+                        return None, None
+
+                    if choice == "New Game":
+                        if has_save:
+                            delete_save()
+                        return None, None
+
+                    if choice == "Quit":
+                        pygame.quit(); sys.exit()
+
+
+# ==============================================================================
 #  Main game
-# ═══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 
 def main(player: Entity = None, win: Windows = None, maze: Maze = None):
 
-    # ── Window ──────────────────────────────────────────────────────────────
+    # -- Window ---------------------------------------------------------
     if win is None:
         win = Windows(1280, 800)
     else:
@@ -142,7 +208,14 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         win._log            = []
         win._log_timer      = []
 
-    # ── Character creation ───────────────────────────────────────────────────
+    # -- Start menu (only on very first call) --------------------------------
+    if player is None and maze is None:
+        loaded_player, loaded_maze = start_menu(win)
+        if loaded_player:
+            player = loaded_player
+            maze   = loaded_maze
+
+    # -- Character creation (only when no save was loaded) -------------------
     if player is None:
         gender_choice = _menu(win, "Choose your hero's gender",
                                ["Male", "Female", "Non-Binary"])
@@ -161,30 +234,31 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         _stat_allocation(win, player)
         for _ in range(2):
             player.add_to_inventory(generate_items_loot("player"))
-    else:
-        player.health = player.max_health
 
-    # ── Maze ─────────────────────────────────────────────────────────────────
+    # -- Maze (skip rebuild when loaded from save) ----------------------------
     if maze is None:
         maze = Maze(30, 30, win)
+        maze.create_maze()
+        maze.player_init(player)
+        maze.monsters_init()
     else:
-        maze._win     = win
-        maze.origin  = maze.origin    # unchanged
-    maze.create_maze()
-    maze.player_init(player)
-    x,y = player.location.cent.x, player.location.cent.y
-    win.center_on_point(x,y)
-    maze.monsters_init()
+        # Resuming: maze already fully rebuilt by load_game or next_level
+        maze._win = win
+        player.health = player.health   # keep loaded health (don't reset)
+        win.set_level(maze.level)
+
+    x, y = player.location.cent.x, player.location.cent.y
+    win.center_on_point(x, y)
     maze.update_visibility(player)
     win.set_player_stats(player)
 
-    # ── State flags ──────────────────────────────────────────────────────────
+    # -- State flags --------------------------------------------------
     busy  = False    # True while movement animation is running
     alive = True
 
-    # ═════════════════════════════════════════════════════════════════════════
+    # =========================================================================
     #  Game-logic helpers
-    # ═════════════════════════════════════════════════════════════════════════
+    # =========================================================================
     def redraw():
         win.surface.fill((10, 8, 12))
         for row in maze.cells:
@@ -260,57 +334,78 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         if 0 <= nr < maze.num_rows and 0 <= nc < maze.num_cols:
             win.log(inspect(maze.cells[nr][nc]))
 
-    # ── Inventory ────────────────────────────────────────────────────────────
+    # -- Save / Load in-game --------------------------------------------------
 
-    def use_selected(type="item"):
-        if type == "spell":
-            item_name = win.spell_selected_name()
+    def do_save():
+        msg = save_game(player, maze)
+        win.log(msg)
+
+    def do_load():
+        loaded_p, loaded_m = load_game(win)
+        if loaded_p and loaded_m:
+            win.log("Save loaded — restarting from save point.")
+            main(player=loaded_p, win=win, maze=loaded_m)
         else:
-            item_name = win.inv_selected_name()
-        if item_name:
-            if type == "spell":
-                action = player.cast_spell(item_name,maze)
-                win.set_spell_list(player)
-            else:
-                action = player.use_item(item_name, maze)
-                win.log(f"Used: {item_name}")
-                win.set_inventory(player)
-            win.set_player_stats(player)
-            win.log(action)
-            do_enemy_turn()
+            win.log("No save file found.")
 
-    def open_inventory():
-        player.show_inventory(win)
-        if win.inventory_show:
-            bind_inventory()
+    # -- Inventory ------------------------------------------------------------
+
+    _PANELS = {
+        "inventory": dict(
+            close_key   = pygame.K_i,
+            cursor_fn   = lambda delta: win.inv_cursor_move(delta),
+            selected_fn = lambda: win.inv_selected_name(),
+            action_fn   = lambda name: player.use_item(name, maze),
+            refresh_fn  = lambda: win.set_inventory(player),
+            log_prefix  = "Used: ",
+        ),
+        "spell_list": dict(
+            close_key   = pygame.K_c,
+            cursor_fn   = lambda delta: win.spell_cursor_move(delta),
+            selected_fn = lambda: win.spell_selected_name(),
+            action_fn   = lambda name: player.cast_spell(name, maze),
+            refresh_fn  = lambda: win.set_spell_list(player),
+            log_prefix  = "",
+        ),
+    }
+
+    def use_selected(panel="inventory"):
+        cfg       = _PANELS[panel]
+        item_name = cfg["selected_fn"]().lower()
+        if not item_name:
+            return
+        if cfg["log_prefix"]:
+            win.log(f"{cfg['log_prefix']}{item_name}")
+        action = cfg["action_fn"](item_name)
+        cfg["refresh_fn"]()
+        win.set_player_stats(player)
+        win.log(action)
+        do_enemy_turn()
+
+    def open_panel(panel="inventory"):
+        player.show_panel(win, panel)
+        if getattr(win, f"{panel}_show"):
+            bind_panel(panel)
         else:
             bind_game()
-    def open_spell_list():
-        player.show_spell_list(win)
-        if win.spell_list_show:
-            bind_spell_list()
-        else:
-            bind_game()
 
-    def bind_spell_list():
+    def bind_panel(panel="inventory"):
+        cfg    = _PANELS[panel]
+        cursor = cfg["cursor_fn"]
         win.unbind_all()
-        win.bind(pygame.K_UP, lambda: win.spell_cursor_move(-1))
-        win.bind(pygame.K_DOWN, lambda: win.spell_cursor_move(1))
-        win.bind(pygame.K_w, lambda: win.spell_cursor_move(-1))
-        win.bind(pygame.K_s, lambda: win.spell_cursor_move(1))
-        win.bind(pygame.K_RETURN, use_selected)
-        win.bind(pygame.K_e, use_selected)
-        win.bind(pygame.K_c, open_spell_list)
+        win.bind(pygame.K_UP,       lambda: cursor(-1))
+        win.bind(pygame.K_DOWN,     lambda: cursor(1))
+        win.bind(pygame.K_w,        lambda: cursor(-1))
+        win.bind(pygame.K_s,        lambda: cursor(1))
+        win.bind(pygame.K_RETURN,   lambda: use_selected(panel))
+        win.bind(pygame.K_e,        lambda: use_selected(panel))
+        win.bind(cfg["close_key"],  lambda: open_panel(panel))
+        # Save/load still works inside panels
+        win.bind(pygame.K_F5,       do_save)
+        win.bind(pygame.K_F9,       do_load)
 
-    def bind_inventory():
-        win.unbind_all()
-        win.bind(pygame.K_UP,     lambda: win.inv_cursor_move(-1))
-        win.bind(pygame.K_DOWN,   lambda: win.inv_cursor_move(1))
-        win.bind(pygame.K_w,      lambda: win.inv_cursor_move(-1))
-        win.bind(pygame.K_s,      lambda: win.inv_cursor_move(1))
-        win.bind(pygame.K_RETURN, use_selected)
-        win.bind(pygame.K_e,      use_selected)
-        win.bind(pygame.K_i,      open_inventory)
+    def open_inventory():  open_panel("inventory")
+    def open_spell_list(): open_panel("spell_list")
 
     def bind_game():
         win.unbind_all()
@@ -337,11 +432,14 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         win.bind(pygame.K_e,     pickup)
         win.bind(pygame.K_j,     inspect_cell)
         win.bind(pygame.K_i,     open_inventory)
+        # Save / Load
+        win.bind(pygame.K_F5,    do_save)
+        win.bind(pygame.K_F9,    do_load)
 
-    # ── Start ────────────────────────────────────────────────────────────────
+    # -- Start ----------------------------------------------------------------
     bind_game()
 
-    # ── Game loop ────────────────────────────────────────────────────────────
+    # -- Game loop ------------------------------------------------------------
     while True:
         if not win.tick():
             _quit()

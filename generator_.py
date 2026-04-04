@@ -118,7 +118,6 @@ def generate_staff(mob_type, staff_name=""):
     description = base.description
     stat_bonus = 0
 
-    # ── Rarity bonuses (mirrors generate_weapon_loot logic) ──────────────────
     if rarity:
         choice = {}
         choice_name = ""
@@ -182,8 +181,8 @@ def generate_staff(mob_type, staff_name=""):
     core_elements = {ele.type for ele in damages}
 
     # Build a weighted spell pool:
-    #   - spells matching a core element  → weight 10
-    #   - all other spells                → weight 1
+    #   - spells matching a core element  -> weight 10
+    #   - all other spells                -> weight 1
     spell_pool = {}
     for spell_key, spell_obj in BASE_SPELLS.items():
         spell_elements = {ele.type for ele in spell_obj.elements}
@@ -200,13 +199,13 @@ def generate_staff(mob_type, staff_name=""):
         "legendary": random.randint(4, 6),
     }[rarity]
 
-    chosen_spells = []
+    chosen_spells = {}
     remaining_pool = dict(spell_pool)
     for _ in range(num_spells):
         if not remaining_pool:
             break
         picked_key = weighted_choice(remaining_pool)
-        chosen_spells.append(copy.deepcopy(BASE_SPELLS[picked_key]))
+        chosen_spells.update({picked_key:copy.deepcopy(BASE_SPELLS[picked_key])})
         del remaining_pool[picked_key]          # no duplicates
 
     # ── Assemble final Staff object ───────────────────────────────────────────

@@ -491,42 +491,64 @@ BASE_ARMOR = {
 
 BASE_SPELLS = {
     # ── Fire ─────────────────────────────────────────────────────────────────
-    "fireball":         Magic("Fireball",          [Elements("fire",        30)],  "A burst of flame that scorches on impact.",               cost=15, distance=5),
-    "flame lance":      Magic("Flame Lance",       [Elements("fire",        50)],  "A piercing spear of concentrated fire.",                  cost=25, distance=7),
+    "fireball": Magic("Fireball", [Elements("fire", 30)], "A burst of flame that scorches on impact.", cost=15,
+                      distance=5),
+    "flame lance": Magic("Flame Lance", [Elements("fire", 50)], "A piercing spear of concentrated fire.", cost=25,
+                         distance=7),
     # ── Ice ──────────────────────────────────────────────────────────────────
-    "ice shard":        Magic("Ice Shard",         [Elements("ice",         25)],  "A razor-sharp shard of conjured ice.",                    cost=12, distance=5),
-    "ice spear":         Magic("Ice Spear",          [Elements("ice",         45)],  "A razor-sharp length of conjured ice.",                      cost=28, distance=3),
+    "ice shard": Magic("Ice Shard", [Elements("ice", 25)], "A razor-sharp shard of conjured ice.", cost=12, distance=5),
+    "ice spear": Magic("Ice Spear", [Elements("ice", 45)], "A razor-sharp length of conjured ice.", cost=28,
+                       distance=3),
     # ── Lightning ────────────────────────────────────────────────────────────
-    "lightning bolt":   Magic("Lightning Bolt",    [Elements("lightning",   40)],  "A crackling bolt of raw electricity.",                    cost=20, distance=6),
+    "lightning bolt": Magic("Lightning Bolt", [Elements("lightning", 40)], "A crackling bolt of raw electricity.",
+                            cost=20, distance=6),
     # ── Water ────────────────────────────────────────────────────────────────
-    "tidal wave":       Magic("Tidal Wave",        [Elements("water",       35)],  "A rushing wall of water that bowls enemies over.",        cost=18, distance=4),
+    "tidal wave": Magic("Tidal Wave", [Elements("water", 35)], "A rushing wall of water that bowls enemies over.",
+                        cost=18, distance=4),
     # ── Earth ────────────────────────────────────────────────────────────────
-    "stone spike":      Magic("Stone Spike",       [Elements("earth",       32)],  "Jagged spires of rock erupt beneath the target.",         cost=16, distance=4),
+    "stone spike": Magic("Stone Spike", [Elements("earth", 32)], "Jagged spires of rock erupt beneath the target.",
+                         cost=16, distance=4),
     # ── Wind ─────────────────────────────────────────────────────────────────
-    "gust blade":       Magic("Gust Blade",        [Elements("wind",        22)],  "A razor-edged current of compressed air.",                cost=11, distance=5),
+    "gust blade": Magic("Gust Blade", [Elements("wind", 22)], "A razor-edged current of compressed air.", cost=11,
+                        distance=5),
     # ── Light ────────────────────────────────────────────────────────────────
-    "holy light":       Magic("Holy Light",        [Elements("light",       45)],  "A blinding beam of radiant divine energy.",               cost=22, distance=8),
-    "smite":            Magic("Smite",             [Elements("light",       30)],  "A concentrated strike of sacred power.",                  cost=15, distance=5),
+    "holy light": Magic("Holy Light", [Elements("light", 45)], "A blinding beam of radiant divine energy.", cost=22,
+                        distance=8),
+    "smite": Magic("Smite", [Elements("light", 30)], "A concentrated strike of sacred power.", cost=15, distance=5),
     # ── Dark ─────────────────────────────────────────────────────────────────
-    "dark pulse":       Magic("Dark Pulse",        [Elements("dark",        35)],  "A wave of shadowy energy that drains the soul.",          cost=18, distance=4),
-    "void rift":        Magic("Void Rift",         [Elements("dark",        55)],  "Tears a wound in reality, unleashing consuming darkness.",cost=32, distance=6),
+    "dark pulse": Magic("Dark Pulse", [Elements("dark", 35)], "A wave of shadowy energy that drains the soul.", cost=18,
+                        distance=4),
+    "void rift": Magic("Void Rift", [Elements("dark", 55)], "Tears a wound in reality, unleashing consuming darkness.",
+                       cost=32, distance=6),
     # ── Poison ───────────────────────────────────────────────────────────────
-    "poison cloud":     Magic("Poison Cloud",      [Elements("poison",      20)],  "A lingering toxic cloud that chokes and corrodes.",       cost=10, distance=3),
-    "venom strike":     Magic("Venom Strike",      [Elements("poison",      30)],  "A concentrated burst of lethal venom.",                   cost=16, distance=5),
+    "poison cloud": Magic("Poison Cloud", [Elements("poison", 20)], "A lingering toxic cloud that chokes and corrodes.",
+                          cost=10, distance=3),
+    "venom strike": Magic("Venom Strike", [Elements("poison", 30)], "A concentrated burst of lethal venom.", cost=16,
+                          distance=5),
     # ── Physical ─────────────────────────────────────────────────────────────
-    "force wave":       Magic("Force Wave",        [Elements("physical",    28)],  "A concussive shockwave of pure kinetic force.",           cost=14, distance=3),
-    "arcane barrage":   Magic("Arcane Barrage",    [Elements("physical",    18)],  "Rapid-fire bolts of raw magical force.",                  cost= 9, distance=5),
+    "force wave": Magic("Force Wave", [Elements("physical", 28)], "A concussive shockwave of pure kinetic force.",
+                        cost=14, distance=3),
+    "arcane barrage": Magic("Arcane Barrage", [Elements("physical", 18)], "Rapid-fire bolts of raw magical force.",
+                            cost=9, distance=5),
     # ── Multi-element ────────────────────────────────────────────────────────
-    "hellfire":         Magic("Hellfire",          [Elements("fire",        25), Elements("dark",  20)],  "Infernal flames mingled with corrupting shadow.",         cost=28, distance=5),
-    "steam burst":      Magic("Steam Burst",       [Elements("fire",        18), Elements("water", 18)],  "Superheated water erupts in a scalding explosion.",       cost=20, distance=3),
-    "frostbolt":        Magic("Frostbolt",         [Elements("ice",         20), Elements("water", 15)],  "A bolt of freezing water that chills to the bone.",       cost=18, distance=6),
-    "thunder clap":     Magic("Thunder Clap",      [Elements("lightning",   22), Elements("wind",  18)],  "A booming shockwave crackling with electric charge.",     cost=22, distance=3),
-    "plague bolt":      Magic("Plague Bolt",       [Elements("poison",      18), Elements("dark",  18)],  "A bolt of festering dark corruption.",                    cost=20, distance=5),
-    "divine wrath":     Magic("Divine Wrath",      [Elements("light",       30), Elements("fire",  20)],  "Sacred flames of righteous fury smite the wicked.",       cost=30, distance=6),
-    "frozen earth":     Magic("Frozen Earth",      [Elements("ice",         20), Elements("earth", 20)],  "Permafrost erupts from the ground, trapping foes.",       cost=22, distance=3),
+    "hellfire": Magic("Hellfire", [Elements("fire", 25), Elements("dark", 20)],
+                      "Infernal flames mingled with corrupting shadow.", cost=28, distance=5),
+    "steam burst": Magic("Steam Burst", [Elements("fire", 18), Elements("water", 18)],
+                         "Superheated water erupts in a scalding explosion.", cost=20, distance=3),
+    "frostbolt": Magic("Frostbolt", [Elements("ice", 20), Elements("water", 15)],
+                       "A bolt of freezing water that chills to the bone.", cost=18, distance=6),
+    "thunder clap": Magic("Thunder Clap", [Elements("lightning", 22), Elements("wind", 18)],
+                          "A booming shockwave crackling with electric charge.", cost=22, distance=3),
+    "plague bolt": Magic("Plague Bolt", [Elements("poison", 18), Elements("dark", 18)],
+                         "A bolt of festering dark corruption.", cost=20, distance=5),
+    "divine wrath": Magic("Divine Wrath", [Elements("light", 30), Elements("fire", 20)],
+                          "Sacred flames of righteous fury smite the wicked.", cost=30, distance=6),
+    "frozen earth": Magic("Frozen Earth", [Elements("ice", 20), Elements("earth", 20)],
+                          "Permafrost erupts from the ground, trapping foes.", cost=22, distance=3),
     # ── Healing ──────────────────────────────────────────────────────────────
-    "mend":             Magic("Mend",              [Elements("healing",     25)],  "A gentle pulse of restorative energy.",                   cost=12, distance=1),
-    "greater heal":     Magic("Greater Heal",      [Elements("healing",     50)],  "A powerful wave of healing light.",                       cost=28, distance=1),
+    "mend": Magic("Mend", [Elements("healing", 25)], "A gentle pulse of restorative energy.", cost=12, distance=1),
+    "greater heal": Magic("Greater Heal", [Elements("healing", 50)], "A powerful wave of healing light.", cost=28,
+                          distance=1),
 }
 
 BASE_STAFFS = {
