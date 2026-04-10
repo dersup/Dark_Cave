@@ -13,13 +13,32 @@ def inspect(target):
 		if k in allowed and v
 		and not (isinstance(v, Inventory) and v.length() == 0)
 	]
-	return f"\n=== {class_name} ===" + "".join(lines) if lines else "Nothing found"
+	return f"\n=== {class_name} ===" + "\n".join(lines) if lines else "Nothing found"
 
 
 def next_cell(row, col, direction):
 	offsets = {"up": (-1, 0), "down": (1, 0), "left": (0, -1), "right": (0, 1)}
 	dr, dc  = offsets.get(direction, (0, 0))
 	return row + dr, col + dc
+
+def get_neighbors(maze, row, col):
+	neighbors = []
+	cell = maze.cells[row][col]
+
+	directions = {
+		"up":    (-1, 0, "top"),
+		"down":  (1, 0, "bottom"),
+		"left":  (0, -1, "left"),
+		"right": (0, 1, "right"),
+	}
+
+	for d, (dr, dc, wall) in directions.items():
+		if not getattr(cell, wall):  # no wall → can move
+			nr, nc = row + dr, col + dc
+			if 0 <= nr < maze.num_rows and 0 <= nc < maze.num_cols:
+				neighbors.append((nr, nc))
+
+	return neighbors
 
 
 class Entity:
@@ -47,6 +66,7 @@ class Entity:
 		self.facing   = None
 		self.is_player = False
 		self.id_      = None
+		self.visible_cells = set()
 
 		self.add_items_to_inventory([armor_, weapon_])
 		self.use_item(self.inventory.items["Armors"][0].name)
@@ -99,19 +119,21 @@ class Entity:
 
 		roll  = random.randint(1, 20)
 		roll += int(self.stats["luck"] * 0.2)
-		roll += int(self.stats["attack"] // 4)
+		if isinstance(weapon_, Magic):
+			roll += int(self.stats["magic_attack"])
+			attack_total = roll + self.get_equipped_staff().attack
+			e_defence = int(enemy.stats["magic_defence"])
 
+		else:
+			roll += int(self.stats["attack"])
+			attack_total = roll + self.weapon.attack
+			e_defence = int(enemy.stats["defence"])
+		dam_taken = enemy.take_damage(weapon_.elements, extra_dam=self.stats["attack"])
 		if isinstance(weapon_, Throwing) and "bomb" in weapon_.name:
 			dam_taken = enemy.take_damage(weapon_.elements) if roll > 10 \
-						else enemy.take_damage(weapon_.elements, 0.5)
-		else:
-			if isinstance(weapon_, Magic):
-				attack_total = roll + self.get_equipped_staff().attack
-			else:
-				attack_total = roll + weapon_.attack
-			if attack_total < 10 + enemy.stats["defence"]:
-				return f"{self.name} misses {enemy.name}."
-			dam_taken = enemy.take_damage(weapon_.elements, extra_dam=self.stats["attack"])
+				else enemy.take_damage(weapon_.elements, 0.5)
+		elif attack_total < 10 + e_defence:
+			return f"{self.name} misses {enemy.name}."
 
 		if not dam_taken:
 			return f"{enemy.name} took no damage"
@@ -206,7 +228,8 @@ class Entity:
 	# ── Item usage ────────────────────────────────────────────────────────────
 
 	def use_item(self, item_name, maze=None):
-		pattern = re.compile(rf"{item_name}", flags=re.IGNORECASE)
+		item_name = re.sub(r'^\d+x\s*', '', item_name).strip()
+		pattern = re.compile(rf'{item_name}', flags=re.IGNORECASE)
 		for category, items in self.inventory.items.items():
 			for item_ in items:
 				if not pattern.search(item_.name):
@@ -335,6 +358,7 @@ class Entity:
 		if 0 <= row < maze.num_rows and 0 <= col < maze.num_cols:
 			target = maze.cells[row][col]
 			if target.enemy:
+				self.facing = direction
 				result = self.attack_target(target.enemy_entity, self.weapon, maze)
 				_done(); return result
 			maze.cells[row_old][col_old].ani_move(target, duration=200, on_complete=on_complete)
@@ -344,10 +368,49 @@ class Entity:
 			self.facing   = direction
 
 	# ── Enemy AI ──────────────────────────────────────────────────────────────
+	def bfs_path(self, maze, start, goal):
+		from collections import deque
+		queue = deque([start])
+		came_from = {start: None}
+
+		while queue:
+			current = queue.popleft()
+
+			if current == goal:
+				break
+
+			for neighbor in get_neighbors(maze, *current):
+				if neighbor not in came_from:
+					queue.append(neighbor)
+					came_from[neighbor] = current
+
+		# reconstruct path
+		if goal not in came_from:
+			return None  # no path
+
+		path = []
+		curr = goal
+		while curr:
+			path.append(curr)
+			curr = came_from[curr]
+
+		path.reverse()
+		return path
+
 
 	def enemy_turn(self, player, maze, on_complete=None):
 		def _done():
 			if on_complete: on_complete()
+
+		def direction_from_to(a, b):
+			ay, ax = a
+			by, bx = b
+
+			if by == ay - 1: return "up"
+			if by == ay + 1: return "down"
+			if bx == ax - 1: return "left"
+			if bx == ax + 1: return "right"
+			return None
 
 		if not self.location:
 			_done(); return
@@ -374,14 +437,25 @@ class Entity:
 				if cond and not getattr(self.location, wall):
 					self.attack_target(player, self.weapon, maze)
 					_done(); return
+		path = None
+		for (y,x) in self.visible_cells:
+			if maze.cells[y][x].player_entity:
+				path = self.bfs_path(maze, (my_row, my_col), (p_row, p_col))
+				break
 
-		# Random walk
-		dirs = [d for d in ("up", "down", "left", "right")
-				if self.location.can_move(d, maze, is_enemy=True) != "bump"]
-		if not dirs:
-			_done(); return
-		direction = random.choice(dirs)
-		row, col  = next_cell(my_row, my_col, direction)
+		if path:
+			next_step = path[1]
+			direction = direction_from_to((my_row,my_col), next_step)
+			self.facing = direction
+			row, col = next_cell(my_row, my_col, direction)
+		else:
+			dirs = [d for d in ("up", "down", "left", "right")
+			        if self.location.can_move(d, maze, is_enemy=True) != "bump"]
+			if not dirs:
+				_done();
+				return
+			direction = random.choice(dirs)
+			row, col = next_cell(my_row, my_col, direction)
 		if 0 <= row < maze.num_rows and 0 <= col < maze.num_cols:
 			maze.cells[my_row][my_col].ani_move(maze.cells[row][col], duration=200,
 												 on_complete=on_complete)

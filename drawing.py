@@ -42,6 +42,7 @@ class Line:
 class Cell:
     def __init__(self, win, top_corner, bottom_corner,
                  top=True, bottom=True, left=True, right=True):
+        self._anim_dst_cell = None
         self._tl = top_corner
         self._br = bottom_corner
         self._tr = Point(self._br.x, self._tl.y)
@@ -83,9 +84,9 @@ class Cell:
     # -----------------------------------------------------------------------
     # Visibility
     # -----------------------------------------------------------------------
-    def is_visible(self, maze):
+    def is_visible(self,player):
         y, x = self.location
-        if (y, x) in maze.visible_cells:
+        if (y, x) in player.visible_cells:
             return 1
         if self.visited:
             return 2
@@ -109,11 +110,11 @@ class Cell:
             self._screen(p1), self._screen(p2), 2
         )
 
-    def draw(self, maze, start=False):
+    def draw(self, player,start=False):
         if start:
             return   # generation phase — don't draw individual cells
 
-        vision = self.is_visible(maze)
+        vision = self.is_visible(player)
         if vision == 0:
             return
 
@@ -152,7 +153,8 @@ class Cell:
                     self._dot(self.cent, 7, "blue",player=self.player_entity)
             if self.enemy_entity and self._anim_who != "enemy":
                 animating = any(
-                    c._anim_who == "enemy" for c in self._win.animating_cells if c is not self
+                    c._anim_dst_cell is self for c in self._win.animating_cells
+                    if c._anim_who == "enemy"
                 )
                 if not animating:
                     self._draw_enemy_dot(self.cent)
@@ -189,6 +191,7 @@ class Cell:
     # -----------------------------------------------------------------------
     def ani_move(self, target, duration=180, on_complete=None):
         import time
+        self._anim_dst_cell = target
         self._anim_src = Point(self.cent.x, self.cent.y)
         self._anim_dst = Point(target.cent.x, target.cent.y)
         self._anim_pt  = Point(self.cent.x, self.cent.y)

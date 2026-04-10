@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from drawing import Cell, Point
+from entity import Entity
 from generator_ import generate_enemy
 
 sys.setrecursionlimit(4000)
@@ -193,11 +194,11 @@ class Maze:
     # -----------------------------------------------------------------------
     # Visibility (BFS through open walls)
     # -----------------------------------------------------------------------
-    def update_visibility(self, player):
-        radius = 2
-        sy, sx = player.location.location
-        self.cells[sy][sx].visited = True
-        self.visible_cells = set()
+    def update_visibility(self, entity:Entity,radius=2):
+        sy, sx = entity.location.location
+        if entity.is_player:
+            self.cells[sy][sx].visited = True
+        entity.visible_cells = set()
         queue = [(sy, sx, 0)]
         dirs  = {
             "up":    (-1,  0),
@@ -207,9 +208,9 @@ class Maze:
         }
         while queue:
             y, x, dist = queue.pop(0)
-            if (y, x) in self.visible_cells:
+            if (y, x) in entity.visible_cells:
                 continue
-            self.visible_cells.add((y, x))
+            entity.visible_cells.add((y, x))
             if dist >= radius:
                 continue
             for direction, (dy, dx) in dirs.items():
@@ -226,6 +227,7 @@ class Maze:
         self.level += 1
         self.cells = []
         self.visible_cells = set()
+        self.create_maze()
         main(player, self._win, self)
 
     def level_up(self, player):

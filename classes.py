@@ -54,8 +54,8 @@ class Item:
         self.value       = int(gold)
         self.description = description
 
-    def _repr_stats(self):  return f"G: {self.value}"
-    def __repr__(self):     return f"{self.name} ({self._repr_stats()}) {self.description}"
+    def _repr_stats(self):  return f"(G: {self.value})"
+    def __repr__(self):     return f"({self.name}) ({self._repr_stats()}) ({self.description})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) \
@@ -69,7 +69,7 @@ class Healing(Item):
         super().__init__(in_name=in_name, gold=gold)
         self.healing = healing
 
-    def _repr_stats(self):  return f"Healing: {self.healing}"
+    def _repr_stats(self):  return f"Healing: ({self.healing})"
 
     def __add__(self, other):
         if not isinstance(other, int): raise TypeError
@@ -91,11 +91,11 @@ class Weapon(Item):
         self.attack       = attack
         self.elements     = elements if elements is not None else [Elements()]
         self.stat_bonuses = _default_stats()
-        self.description  = f"{self.elements}{self.stat_bonuses} {self.description}"
+        self.description  = f"({self.elements})({self.stat_bonuses}) ({self.description})"
 
     def __repr__(self):
-        return (f"{self.name} (DMG: {self.elements}, ATK: {self.attack}, "
-                f"G: {self.value}) {self.description}")
+        return (f"{self.name} (DMG: ({self.elements}), ATK: ({self.attack}), "
+                f"(G: ({self.value})) ({self.description})")
 
     def __eq__(self, other):
         return (isinstance(other, Weapon)
@@ -116,8 +116,8 @@ class Staff(Weapon):
 
     def __repr__(self):
         spell_names = ", ".join(s for s in list(self.spells.keys()))
-        return (f"{self.name} (DMG: {self.elements}, ATK: {self.attack}, "
-                f"G: {self.value}) Spells: [{spell_names}] {self.description}")
+        return (f"{self.name} (DMG: ({self.elements}) ATK: ({self.attack}) "
+                f"(G: ({self.value})) Spells: ({spell_names}) ({self.description})")
 
     def __eq__(self, other):
         return isinstance(other, Staff) and self.name == other.name and self.spells == other.spells
@@ -133,8 +133,8 @@ class Throwing(Weapon):
         self.distance = distance
 
     def __repr__(self):
-        return (f"{self.name} (Range: {self.distance}, {self.elements}, "
-                f"ATK: {self.attack}, G: {self.value}) {self.description}")
+        return (f"{self.name} (Range: ({self.distance}), ({self.elements}), "
+                f"ATK: ({self.attack}), (G: ({self.value})) {self.description}")
 
     def __eq__(self, other):
         return (isinstance(other, Throwing)
@@ -150,10 +150,10 @@ class Armour(Item):
         super().__init__(in_name=in_name, gold=gold, description=description)
         self.resistances  = _default_resistances()
         self.stat_bonuses = _default_stats()
-        self.description  = f"{self.resistances} {self.stat_bonuses} {self.description}"
+        self.description  = f"({self.resistances}) ({self.stat_bonuses}) ({self.description})"
 
     def __repr__(self):
-        return f"{self.name} (G: {self.value} {self.description})"
+        return f"{self.name} (G: ({self.value})) ({self.description})"
 
     def __eq__(self, other):
         return (isinstance(other, Armour)
@@ -175,7 +175,7 @@ class Magic:
 
     def __repr__(self):
         return (f"{self.name} ({self.elements}) "
-                f"MP:{self.cost} Range:{self.distance} — {self.spell_description}")
+                f"MP:({self.cost}) Range:({self.distance}) — ({self.spell_description})")
 
     def __eq__(self, other):
         if isinstance(other, Magic) and self.name == other.name:

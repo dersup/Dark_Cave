@@ -12,7 +12,7 @@ TEXT         = (220, 215, 200)
 MUTED        = (120, 110, 100)
 GOLD         = (255, 210,  50)
 HP_COL       = (210,  55,  55)
-MP_COL       = ( 60, 120, 255)
+MP_COL       = (60, 120, 255)
 LEVEL_COL    = (160, 130, 255)
 HIGHLIGHT_BG = ( 55,  45,  75)
 HIGHLIGHT_FG = (120, 180, 255)
@@ -33,6 +33,9 @@ class Panel:
         self.lines   = []   # list of (text, is_header)
         self.cursor  = 0
         self.visible = False
+        self.info = None
+
+
 
     def set_lines(self, lines: list):
         self.lines  = lines
@@ -151,21 +154,24 @@ class Windows:
             self._log.pop(0)
             self._log_timer.pop(0)
 
-    # ── HUD updates ───────────────────────────────────────────────────────────
+    # -- HUD updates -----------------------------------------------------------
 
     def set_level(self, lvl):
         self._level_str = f"level: {lvl}"
 
     def set_player_stats(self, player):
         self._hp_str   = f"HP: {player.health}/{player.max_health}"
+        self._mp_str = f"MP: {player.mana}/{player.max_mana}"
         self._gold_str = f"Gold: {player.gold}"
+
+    # -- Info Text -------------------------------------------------------------
 
     # ── Panel population ──────────────────────────────────────────────────────
 
     def _build_lines(self, text: str, headers: set) -> list:
         return [
             (s, s in headers)
-            for line in text.replace(",","\n").split("\n")
+            for line in text.split("\n")
             if (s := line.strip().strip("[").strip("]")) and s != "-------------"
         ]
 
@@ -177,7 +183,7 @@ class Windows:
 
     def set_spell_list(self, player):
         self._panels["spell_list"].set_lines(
-            self._build_lines(str(list(player.get_spells().keys())), {"SPELLS"})
+            self._build_lines("\n".join(list(player.get_spells().keys())), {"SPELLS"})
         )
 
     # ── Panel cursor / selection ──────────────────────────────────────────────
@@ -267,14 +273,201 @@ class Windows:
     def _draw_hud(self):
         self.txt(self._level_str, self.w // 2, 10, "md", LEVEL_COL, center=True)
         self.txt(self._hp_str,    16, 10, "md", HP_COL)
-        self.txt(self._mp_str,    27, 10, "md", MP_COL)
+        self.txt(self._mp_str,    32 + self.font["md"].size(self._hp_str)[0], 10, "md", MP_COL)
         self.txt(self._gold_str,  16, self.h - 28, "md", GOLD)
         hint = "WASD/Arrows:Move  Shift+dir:Face  E:Pick up  I:Inventory C:Cast"
-        save_hint = "SAVE F5 / LOAD F6"
+        save_hint = "SAVE F5 / LOAD F9"
         self.txt(hint, self.w - 10 - self.font["sm"].size(hint)[0],
                  self.h - 20, "sm", TEXT)
         self.txt(save_hint, self.w - 10 - self.font["sm"].size(save_hint)[0],
-                 self.h -10, "sm", save_hint)
+                 10, "sm", TEXT)
+
+    def _wrap_text(self, text: str, max_w: int, size="sm") -> list:
+        """Word-wrap text into lines no wider than max_w pixels."""
+        words = text.split()
+        lines, current = [], ""
+        for word in words:
+            test = current + word + " "
+            if self.font[size].size(test)[0] <= max_w:
+                current = test
+            else:
+                if current:
+                    lines.append(current.rstrip())
+                current = word + " "
+        if current.strip():
+            lines.append(current.rstrip())
+        return lines or [""]
+
+    def _parse_item_info(self, raw: str, max_w: int) -> list:
+        """
+        Turn a raw item repr string into a list of display row dicts:
+          {"kind": "kv",      "key": str, "val": str, "col": colour}
+          {"kind": "text",    "text": str, "col": colour}
+          {"kind": "divider"}
+        """
+        import re
+
+        rows = []
+
+        def kv(key, val, col=TEXT):
+            rows.append({"kind": "kv", "key": key, "val": val, "col": col})
+
+        def divider():
+            # Don't add a double-divider
+            if rows and rows[-1]["kind"] != "divider":
+                rows.append({"kind": "divider"})
+
+        def text_rows(txt, col=TEXT):
+            for line in self._wrap_text(txt.strip(), max_w):
+                rows.append({"kind": "text", "text": line, "col": col})
+
+        def extract_dict(s):
+            #Parse 'key: val, key: val …' into an ordered list of (k,v).
+            pairs = []
+            for m in re.finditer(r"'?(\w+)'?\s*:\s*([^,}]+)", s):
+                pairs.append((m.group(1), m.group(2).strip().strip("'")))
+            return pairs
+
+        def nonzero(pairs):
+            return [(k, v) for k, v in pairs if v not in ("0", "0.0", "0.00", "")]
+
+        # Item name: text before the first '(' — or inside it if repr starts with '('
+        item_name = raw.split("(")[0].strip()
+        if not item_name:
+            m0 = re.match(r'\(([^)]+)\)', raw)
+            if m0:
+                item_name = m0.group(1).strip()
+
+        # ── Gold: match "G: <digits>" but NOT when preceded by "DM" (i.e. DMG:) ──
+        gm = re.search(r"(?<!DM)G:\s*\(?(\d+)\)?", raw)
+        if gm:
+            kv("Value", gm.group(1) + " G", GOLD)
+
+        # ── Attack ───────────────────────────────────────────────────────────
+        atk_m = re.search(r"ATK:\s*\(?(-?\d+)\)?", raw)
+        if atk_m:
+            kv("Attack", atk_m.group(1), HP_COL)
+
+        # ── Throwing range ────────────────────────────────────────────────────
+        rng_m = re.search(r"Range:\s*\((\d+)\)", raw)
+        if rng_m:
+            kv("Range", rng_m.group(1))
+
+        # ── Healing: match "Healing: ([...])" or "Healing: [...]" ────────────
+        heal_block = re.search(r"Healing:\s*\(?\[([^\]]*)\]\)?", raw)
+        heal_span  = heal_block.span() if heal_block else (-1, -1)
+
+        # ── Elements: deduplicate, skip anything inside the heal block ────────
+        elem_seen = set()
+        elem_list = []
+        for m in re.finditer(r"(\w+)\s*\(DMG:\s*(-?\d+)\)", raw):
+            if heal_span[0] <= m.start() < heal_span[1]:
+                continue
+            key = (m.group(1).lower(), m.group(2))
+            if key not in elem_seen:
+                elem_seen.add(key)
+                elem_list.append((m.group(1), m.group(2)))
+        if elem_list:
+            divider()
+            rows.append({"kind": "text", "text": "Damage-Types", "col": GOLD})
+            for etype, edmg in elem_list:
+                kv("  " + etype.capitalize(), edmg, HIGHLIGHT_FG)
+
+        if heal_block:
+            heal_entries = re.findall(
+                r"(\w+)\s*\(DMG:\s*(-?\d+)\)", heal_block.group(1))
+            if heal_entries:
+                divider()
+                rows.append({"kind": "text", "text": "Heals", "col": GOLD})
+                for etype, edmg in heal_entries:
+                    kv("  " + etype.capitalize(), "+" + edmg, (80, 210, 100))
+
+        # ── Spells on staff ───────────────────────────────────────────────────
+        spell_m = re.search(r"Spells:\s*\(([^)]*)\)", raw)
+        if spell_m and spell_m.group(1).strip():
+            divider()
+            rows.append({"kind": "text", "text": "Spells", "col": GOLD})
+            for sp in spell_m.group(1).split(","):
+                sp = sp.strip()
+                if sp:
+                    rows.append({"kind": "text", "text": "  " + sp, "col": MP_COL})
+
+        # ── MP cost (Magic) ───────────────────────────────────────────────────
+        mp_m = re.search(r"MP:\s*\(?(\d+)\)?", raw)
+        if mp_m:
+            kv("MP Cost", mp_m.group(1), MP_COL)
+
+        # ── Cast range (Magic — only when no Throwing range already shown) ────
+        if mp_m:
+            cr_m = re.search(r"Range:\s*\((\d+)\)", raw)
+            if cr_m:
+                kv("Cast Range", cr_m.group(1))
+
+        # ── Stat bonuses ──────────────────────────────────────────────────────
+        stat_keys = ("attack", "defence", "luck", "magic_defence",
+                     "magic_attack", "agility", "exp")
+        stat_block = re.search(r"\{[^}]*'?attack'?\s*:", raw)
+        if stat_block:
+            block_str = raw[stat_block.start(): raw.find("}", stat_block.start()) + 1]
+            nz = nonzero([(k, v) for k, v in extract_dict(block_str)
+                          if k in stat_keys])
+            if nz:
+                divider()
+                rows.append({"kind": "text", "text": "Stat Bonuses", "col": GOLD})
+                for k, v in nz:
+                    label = k.replace("_", " ").title()
+                    col   = (HP_COL  if "attack"  in k else
+                             MP_COL  if "magic"   in k else HIGHLIGHT_FG)
+                    kv("  " + label,
+                       ("+" if not v.startswith("-") else "") + v, col)
+
+        # ── Resistances ───────────────────────────────────────────────────────
+        res_keys = ("fire", "ice", "lightning", "water", "earth",
+                    "wind", "light", "dark", "poison", "physical")
+        res_block = re.search(r"\{[^}]*'?fire'?\s*:", raw)
+        if res_block:
+            block_str = raw[res_block.start(): raw.find("}", res_block.start()) + 1]
+            nz = nonzero([(k, v) for k, v in extract_dict(block_str)
+                          if k in res_keys])
+            if nz:
+                divider()
+                rows.append({"kind": "text", "text": "Resistances", "col": GOLD})
+                for k, v in nz:
+                    kv("  " + k.capitalize(), v + "%", HIGHLIGHT_FG)
+
+        # ── Description: last plain-text (...) block ──────────────────────────
+        # Collect spans to exclude: spells block, heal block, stat/res dicts
+        excluded_spans = []
+        if heal_block:
+            excluded_spans.append(heal_block.span())
+        if spell_m:
+            excluded_spans.append(spell_m.span())
+
+        desc = ""
+        for m in reversed(list(re.finditer(r"\(([^()]{5,})\)", raw))):
+            c = m.group(1).strip()
+            pos = m.start()
+            # Skip if this match overlaps any excluded span
+            if any(s <= pos < e for s, e in excluded_spans):
+                continue
+            if (c
+                    and not c.startswith("{")
+                    and not c.startswith("'")
+                    and not re.match(r'^[\d\s\.,\-\+%]+$', c)
+                    and ":" not in c
+                    and c.lower() != item_name.lower()):
+                desc = c
+                break
+        if desc:
+            divider()
+            for line in self._wrap_text(desc, max_w):
+                rows.append({"kind": "text", "text": line, "col": MUTED})
+
+        # ── Fallback ─────────────────────────────────────────────────────────
+        if not rows:
+            text_rows(raw)
+
+        return rows
 
     def _draw_panel(self, panel: Panel):
         """Single method draws any panel — inventory and spell list both use this."""
@@ -287,7 +480,6 @@ class Windows:
         surf.fill(PANEL)
         self.surface.blit(surf, (px, py))
         pygame.draw.rect(self.surface, BORDER, (px, py, pw, ph), 1)
-
         self.txt(panel.title, px + 10, py + 8, "md", LEVEL_COL)
         pygame.draw.line(self.surface, BORDER, (px, py + 30), (px + pw, py + 30), 1)
 
@@ -308,7 +500,38 @@ class Windows:
             y += 20
 
         if self._info_str:
-            self.txt(self._info_str[:50], px + 4, py + ph - 20, "sm", MUTED)
+            item_title = panel.lines[panel.cursor][0].split("(")[0].strip()
+            rows = self._parse_item_info(self._info_str, pw - 24)
+
+            ix = px + pw
+            iy = py
+            ih = min(self.h - 120, len(rows) * 20 + 80)
+            info_surf = pygame.Surface((pw, ih), pygame.SRCALPHA)
+            info_surf.fill(PANEL)
+            self.surface.blit(info_surf, (ix, iy))
+            pygame.draw.rect(self.surface, BORDER, (ix, iy, pw, ih), 1)
+            self.txt(item_title, ix + 10, iy + 8, "md", LEVEL_COL)
+            pygame.draw.line(self.surface, BORDER, (ix, iy + 30), (ix + pw, iy + 30), 1)
+
+            y = iy + 36
+            for row in rows:
+                if y > iy + ih - 20:
+                    break
+                kind = row.get("kind", "text")
+                if kind == "divider":
+                    pygame.draw.line(self.surface, BORDER,
+                                     (ix + 8, y + 8), (ix + pw - 8, y + 8), 1)
+                    y += 16
+                    continue
+                elif kind == "kv":
+                    key_w, _ = self.txt(row["key"] + ": ", ix + 10, y, "sm", MUTED)
+                    self.txt(row["val"], ix + 10 + key_w, y, "sm", row.get("col", TEXT))
+                elif kind == "text":
+                    self.txt(row["text"], ix + 10, y, "sm", row.get("col", TEXT))
+                y += 20
+
+
+
         self.txt(panel.hint, px + 4, py + ph + 4, "sm", MUTED)
 
     def _draw_log(self):

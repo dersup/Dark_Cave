@@ -26,12 +26,13 @@ from save_load  import save_game, load_game, save_exists, delete_save
 # ===============================================================================
 
 def _menu(win: Windows, prompt: str, options: list[str]) -> str:
-    """Arrow-key / WS selection menu. Returns chosen string."""
+    # Arrow-key / WS selection menu. Returns chosen string.
     cursor = [0]
 
     while True:
         win.surface.fill(COLOURS["dark_gray"])
         win.txt(prompt, win.w // 2, win.h // 4, "lg", COLOURS["purple"], center=True)
+        # highlight selection and place visible cursor at cursor positon
         for i, opt in enumerate(options):
             pre = "▶  " if i == cursor[0] else "   "
             c   = COLOURS["purple"] if i == cursor[0] else COLOURS["orange"]
@@ -52,7 +53,7 @@ def _menu(win: Windows, prompt: str, options: list[str]) -> str:
 
 
 def _text_input(win: Windows, prompt: str, placeholder: str = "") -> str:
-    """Single-line text entry. Enter confirms; blank → placeholder."""
+    # Single-line text entry. Enter confirms; blank → placeholder.
     buf     = ""
     blink   = [True]
     timer   = [0]
@@ -60,12 +61,13 @@ def _text_input(win: Windows, prompt: str, placeholder: str = "") -> str:
     while True:
         win.surface.fill(COLOURS["dark_gray"])
         win.txt(prompt, win.w // 2, win.h // 2 - 50, "lg", COLOURS["purple"], center=True)
+        # if no user txt "buf", use placeholder, else place blinking cursor at end of user txt
         display = (buf or placeholder) + ("|" if blink[0] else " ")
-        c = COLOURS["gray"] if buf else COLOURS["dark_gray"]
+        c = COLOURS["white"] if buf else COLOURS["gray"]
         win.txt(display, win.w // 2, win.h // 2, "md", c, center=True)
         win.txt("Enter to confirm", win.w // 2, win.h // 2 + 36, "sm", COLOURS["gray"], center=True)
         pygame.display.flip()
-
+        # blinking
         dt       = win.clock.tick(30)
         timer[0] += dt
         if timer[0] >= 500:
@@ -100,9 +102,11 @@ def _stat_allocation(win: Windows, player: Entity):
         win.surface.fill(COLOURS["black"])
         win.txt(f"Distribute {remaining} stat point(s)", win.w // 2, win.h // 6, "lg", COLOURS["purple"], center=True)
         for i, stat in enumerate(stats):
+            # window's cursor
             y   = win.h // 6 + 55 + i * 34
             pre = "▶ " if i == cursor[0] else "  "
-            c   = (120, 180, 255) if i == cursor[0] else (200, 195, 180)
+            c   = COLOURS["purple"] if i == cursor[0] else COLOURS["orange"]
+            # visual bar
             bar = "█" * values[stat] + "░" * (25 - values[stat])
             win.txt(f"{pre}{stat:<15} {values[stat]:>2}  {bar[:20]}", win.w // 2 - 160, y, "md", c)
         hint = ("W/S:navigate    A/D or ◄►:remove/add    Enter:confirm (when 0 left)"
@@ -140,7 +144,22 @@ def start_menu(win: Windows) -> tuple:
 #    Show the start screen.
 #    Returns (player, maze) where either or both may be None
 #    (None, None  → new game;  (player, maze) → loaded save).
-
+    def yes_no(message):
+        x = win.w // 2
+        y = win.h // 2
+        while True:
+            win.txt(message,x, y+8, "md", COLOURS["gray"], center=True)
+            win.txt("Y/N",x,y+70,"md",COLOURS["red"],center=True)
+            win.clock.tick(30)
+            pygame.display.flip()
+            for ev_ in pygame.event.get():
+                if ev_.type == pygame.QUIT:
+                    pygame.quit(); sys.exit()
+                if ev_.type == pygame.KEYDOWN:
+                    if ev_.key in (pygame.K_RETURN, pygame.K_y):
+                        return True
+                    if ev_.key in (pygame.K_ESCAPE, pygame.K_n):
+                        return False
     has_save = save_exists()
     options  = ["Continue", "New Game", "Quit"] if has_save \
                else ["New Game", "Quit"]
@@ -166,8 +185,7 @@ def start_menu(win: Windows) -> tuple:
                 pygame.quit(); sys.exit()
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_ESCAPE:
-                    pygame.quit();
-                    sys.exit()
+                    pygame.quit(); sys.exit()
                 elif ev.key in (pygame.K_UP, pygame.K_w):
                     cursor[0] = (cursor[0] - 1) % len(options)
                 elif ev.key in (pygame.K_DOWN, pygame.K_s):
@@ -184,7 +202,11 @@ def start_menu(win: Windows) -> tuple:
 
                     if choice == "New Game":
                         if has_save:
-                            delete_save()
+                            yn = yes_no("are you sure you want to start a new game?, this will overwrite your save.")
+                            if yn:
+                                delete_save()
+                            else:
+                                continue
                         return None, None
 
                     if choice == "Quit":
@@ -237,7 +259,7 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
 
     # -- Maze (skip rebuild when loaded from save) ----------------------------
     if maze is None:
-        maze = Maze(30, 30, win)
+        maze = Maze(10, 10, win)
         maze.create_maze()
         maze.player_init(player)
         maze.monsters_init()
@@ -263,7 +285,7 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         win.surface.fill((10, 8, 12))
         for row in maze.cells:
             for cell in row:
-                cell.draw(maze)
+                cell.draw(player)
         # tick any live animations
         for cell in list(win.animating_cells):
             still_running = cell.tick_anim(player)
@@ -282,10 +304,16 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         do_enemy_turn()
 
     def do_enemy_turn():
+        py,px = player.location.location
         nonlocal alive
         for row in maze.cells:
             for cell in row:
                 if cell.enemy and cell.enemy_entity:
+                    y_,x_ = cell.location
+                    if abs(x_ - px)+abs(y_ - py)<=5:
+                        maze.update_visibility(cell.enemy_entity,4)
+                    else:
+                        cell.enemy_entity.visible_cells = set()
                     cell.enemy_entity.enemy_turn(player, maze)
         win.set_player_stats(player)
         if player.health <= 0:
