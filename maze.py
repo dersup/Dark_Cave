@@ -228,6 +228,8 @@ class Maze:
         self.cells = []
         self.visible_cells = set()
         self.create_maze()
+        self.player_init(player)
+        self.monsters_init()
         main(player, self._win, self)
 
     def level_up(self, player):

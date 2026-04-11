@@ -1,3 +1,4 @@
+from pathlib import Path
 
 #The Dark Cave — Pygame edition
 #------------------------------
@@ -24,6 +25,11 @@ from save_load  import save_game, load_game, save_exists, delete_save
 # ===============================================================================
 #  Character-creation screens
 # ===============================================================================
+
+def play_music():
+    pygame.mixer.init()
+    pygame.mixer.music.load("assets/music/Iron_Descent.mp3")
+    pygame.mixer.music.play(-1)
 
 def _menu(win: Windows, prompt: str, options: list[str]) -> str:
     # Arrow-key / WS selection menu. Returns chosen string.
@@ -144,6 +150,7 @@ def start_menu(win: Windows) -> tuple:
 #    Show the start screen.
 #    Returns (player, maze) where either or both may be None
 #    (None, None  → new game;  (player, maze) → loaded save).
+    play_music()
     def yes_no(message):
         x = win.w // 2
         y = win.h // 2
@@ -218,8 +225,8 @@ def start_menu(win: Windows) -> tuple:
 # ==============================================================================
 
 def main(player: Entity = None, win: Windows = None, maze: Maze = None):
-
     # -- Window ---------------------------------------------------------
+    play_music()
     if win is None:
         win = Windows(1280, 800)
     else:

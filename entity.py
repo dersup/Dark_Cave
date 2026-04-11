@@ -1,6 +1,8 @@
 import random
 import re
 
+from unicodedata import category
+
 from classes import *
 from constants import *
 
@@ -229,10 +231,9 @@ class Entity:
 
 	def use_item(self, item_name, maze=None):
 		item_name = re.sub(r'^\d+x\s*', '', item_name).strip()
-		pattern = re.compile(rf'{item_name}', flags=re.IGNORECASE)
 		for category, items in self.inventory.items.items():
 			for item_ in items:
-				if not pattern.search(item_.name):
+				if item_.name != item_name:
 					continue
 				if isinstance(item_, Healing):
 					self.health = min(self.max_health, self.health + item_.healing[0])
@@ -256,6 +257,10 @@ class Entity:
 		if self.weapon == weapon_:
 			return self.unequip_weapon()
 		self.inventory.items["Equipped"].append(weapon_)
+		for item in list(self.inventory.items["Equipped"]):
+			if item == Weapon():
+				self.inventory.items["Equipped"].remove(item)
+				break
 		for stat, val in weapon_.stat_bonuses.items():
 			self.stats[stat] += val
 		self.weapon = weapon_
@@ -274,6 +279,9 @@ class Entity:
 	def equip_armor(self, armor_):
 		if self.armor == armor_:
 			return self.unequip_armor()
+		for item in list(self.inventory.items["Equipped"]):
+			if item == Armour():
+				self.inventory.items["Equipped"].remove(item)
 		self.inventory.items["Equipped"].append(armor_)
 		for stat, val in armor_.stat_bonuses.items():
 			self.stats[stat] += val
