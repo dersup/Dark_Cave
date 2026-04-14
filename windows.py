@@ -30,7 +30,7 @@ class Panel:
     def __init__(self, title: str, hint: str):
         self.title   = title
         self.hint    = hint
-        self.lines   = []   # list of (text, is_header)
+        self.lines   = []   # list of (text, is_header, item_obj | None)
         self.cursor  = 0
         self.visible = False
         self.info = None
@@ -52,6 +52,13 @@ class Panel:
         if 0 <= new < n:
             self.cursor = new
         return self.lines[self.cursor][0]
+
+    def selected_item(self):
+        """Return the item object at the cursor, or None for headers/spells."""
+        if 0 <= self.cursor < len(self.lines):
+            entry = self.lines[self.cursor]
+            return entry[2] if len(entry) > 2 else None
+        return None
 
     def selected_name(self) -> str:
         if 0 <= self.cursor < len(self.lines):
@@ -169,17 +176,27 @@ class Windows:
     # ── Panel population ──────────────────────────────────────────────────────
 
     def _build_lines(self, text: str, headers: set) -> list:
+        """Used by spell_list (no item objects needed there)."""
         return [
-            (s, s in headers)
+            (s, s in headers, None)
             for line in text.split("\n")
             if (s := line.strip().strip("[").strip("]")) and s != "-------------"
         ]
 
     def set_inventory(self, player):
-        self._panels["inventory"].set_lines(
-            self._build_lines(str(player.inventory),
-                              {"Equipped", "Armors", "Weapons", "Consumables"})
-        )
+        """Build inventory lines as (display_text, is_header, item_obj | None)."""
+        lines = []
+        for category, items in player.inventory.items.items():
+            if not items:
+                continue
+            lines.append((category, True, None))
+            counts: dict = {}
+            for item in items:
+                counts[item] = counts.get(item, 0) + 1
+            for item, count in counts.items():
+                label = f"{count}x {item.name}" if count > 1 else item.name
+                lines.append((label, False, item))
+        self._panels["inventory"].set_lines(lines)
 
     def set_spell_list(self, player):
         self._panels["spell_list"].set_lines(
@@ -298,14 +315,9 @@ class Windows:
             lines.append(current.rstrip())
         return lines or [""]
 
-    def _parse_item_info(self, raw: str, max_w: int) -> list:
-        """
-        Turn a raw item repr string into a list of display row dicts:
-          {"kind": "kv",      "key": str, "val": str, "col": colour}
-          {"kind": "text",    "text": str, "col": colour}
-          {"kind": "divider"}
-        """
-        import re
+    def _build_item_rows(self, item, max_w: int) -> list:
+        """Build display rows directly from an item object — no repr parsing."""
+        from classes import Weapon, Armour, Healing, Magic, Staff, Throwing
 
         rows = []
 
@@ -313,7 +325,6 @@ class Windows:
             rows.append({"kind": "kv", "key": key, "val": val, "col": col})
 
         def divider():
-            # Don't add a double-divider
             if rows and rows[-1]["kind"] != "divider":
                 rows.append({"kind": "divider"})
 
@@ -321,153 +332,99 @@ class Windows:
             for line in self._wrap_text(txt.strip(), max_w):
                 rows.append({"kind": "text", "text": line, "col": col})
 
-        def extract_dict(s):
-            #Parse 'key: val, key: val …' into an ordered list of (k,v).
-            pairs = []
-            for m in re.finditer(r"'?(\w+)'?\s*:\s*([^,}]+)", s):
-                pairs.append((m.group(1), m.group(2).strip().strip("'")))
-            return pairs
+        def nonzero_dict(d):
+            return [(k, v) for k, v in d.items() if v not in (0, 0.0, "0", "0.0", "0.00")]
 
-        def nonzero(pairs):
-            return [(k, v) for k, v in pairs if v not in ("0", "0.0", "0.00", "")]
+        # ── Value ─────────────────────────────────────────────────────────────
+        if hasattr(item, "value") and item.value:
+            kv("Value", f"{item.value} G", GOLD)
 
-        # Item name: text before the first '(' — or inside it if repr starts with '('
-        item_name = raw.split("(")[0].strip()
-        if not item_name:
-            m0 = re.match(r'\(([^)]+)\)', raw)
-            if m0:
-                item_name = m0.group(1).strip()
+        # ── Attack ────────────────────────────────────────────────────────────
+        if isinstance(item, Weapon) and item.attack != -1:
+            kv("Attack", str(item.attack), HP_COL)
 
-        # ── Gold: match "G: <digits>" but NOT when preceded by "DM" (i.e. DMG:) ──
-        gm = re.search(r"(?<!DM)G:\s*\(?(\d+)\)?", raw)
-        if gm:
-            kv("Value", gm.group(1) + " G", GOLD)
+        # ── Throw / cast range ────────────────────────────────────────────────
+        if isinstance(item, Throwing):
+            kv("Range", str(item.distance))
+        elif isinstance(item, Magic):
+            kv("MP Cost", str(item.cost), MP_COL)
+            kv("Cast Range", str(item.distance))
 
-        # ── Attack ───────────────────────────────────────────────────────────
-        atk_m = re.search(r"ATK:\s*\(?(-?\d+)\)?", raw)
-        if atk_m:
-            kv("Attack", atk_m.group(1), HP_COL)
+        # ── Elements / damage types ───────────────────────────────────────────
+        if isinstance(item, Magic):
+            elements = item.elements
+        elif isinstance(item, Weapon):
+            elements = item.elements
+        else:
+            elements = []
 
-        # ── Throwing range ────────────────────────────────────────────────────
-        rng_m = re.search(r"Range:\s*\((\d+)\)", raw)
-        if rng_m:
-            kv("Range", rng_m.group(1))
-
-        # ── Healing: match "Healing: ([...])" or "Healing: [...]" ────────────
-        heal_block = re.search(r"Healing:\s*\(?\[([^\]]*)\]\)?", raw)
-        heal_span  = heal_block.span() if heal_block else (-1, -1)
-
-        # ── Elements: deduplicate, skip anything inside the heal block ────────
-        elem_seen = set()
+        seen = set()
         elem_list = []
-        for m in re.finditer(r"(\w+)\s*\(DMG:\s*(-?\d+)\)", raw):
-            if heal_span[0] <= m.start() < heal_span[1]:
-                continue
-            key = (m.group(1).lower(), m.group(2))
-            if key not in elem_seen:
-                elem_seen.add(key)
-                elem_list.append((m.group(1), m.group(2)))
+        for e in elements:
+            key = (e.type.lower(), e.damage)
+            if key not in seen:
+                seen.add(key)
+                elem_list.append(e)
+
         if elem_list:
             divider()
-            rows.append({"kind": "text", "text": "Damage-Types", "col": GOLD})
-            for etype, edmg in elem_list:
-                kv("  " + etype.capitalize(), edmg, HIGHLIGHT_FG)
+            rows.append({"kind": "text", "text": "Damage Types", "col": GOLD})
+            for e in elem_list:
+                kv("  " + e.type.capitalize(), str(e.damage), HIGHLIGHT_FG)
 
-        if heal_block:
-            heal_entries = re.findall(
-                r"(\w+)\s*\(DMG:\s*(-?\d+)\)", heal_block.group(1))
-            if heal_entries:
-                divider()
-                rows.append({"kind": "text", "text": "Heals", "col": GOLD})
-                for etype, edmg in heal_entries:
-                    kv("  " + etype.capitalize(), "+" + edmg, (80, 210, 100))
+        # ── Healing ───────────────────────────────────────────────────────────
+        if isinstance(item, Healing) and item.healing:
+            divider()
+            rows.append({"kind": "text", "text": "Heals", "col": GOLD})
+            for e in item.healing:
+                kv("  " + e.type.capitalize(), "+" + str(e.damage), (80, 210, 100))
 
         # ── Spells on staff ───────────────────────────────────────────────────
-        spell_m = re.search(r"Spells:\s*\(([^)]*)\)", raw)
-        if spell_m and spell_m.group(1).strip():
+        if isinstance(item, Staff) and item.spells:
             divider()
             rows.append({"kind": "text", "text": "Spells", "col": GOLD})
-            for sp in spell_m.group(1).split(","):
-                sp = sp.strip()
-                if sp:
-                    rows.append({"kind": "text", "text": "  " + sp, "col": MP_COL})
-
-        # ── MP cost (Magic) ───────────────────────────────────────────────────
-        mp_m = re.search(r"MP:\s*\(?(\d+)\)?", raw)
-        if mp_m:
-            kv("MP Cost", mp_m.group(1), MP_COL)
-
-        # ── Cast range (Magic — only when no Throwing range already shown) ────
-        if mp_m:
-            cr_m = re.search(r"Range:\s*\((\d+)\)", raw)
-            if cr_m:
-                kv("Cast Range", cr_m.group(1))
+            for spell_name in item.spells:
+                rows.append({"kind": "text", "text": "  " + spell_name, "col": MP_COL})
 
         # ── Stat bonuses ──────────────────────────────────────────────────────
-        stat_keys = ("attack", "defence", "luck", "magic_defence",
-                     "magic_attack", "agility", "exp")
-        stat_block = re.search(r"\{[^}]*'?attack'?\s*:", raw)
-        if stat_block:
-            block_str = raw[stat_block.start(): raw.find("}", stat_block.start()) + 1]
-            nz = nonzero([(k, v) for k, v in extract_dict(block_str)
-                          if k in stat_keys])
+        if hasattr(item, "stat_bonuses"):
+            nz = nonzero_dict(item.stat_bonuses)
             if nz:
                 divider()
                 rows.append({"kind": "text", "text": "Stat Bonuses", "col": GOLD})
                 for k, v in nz:
                     label = k.replace("_", " ").title()
-                    col   = (HP_COL  if "attack"  in k else
-                             MP_COL  if "magic"   in k else HIGHLIGHT_FG)
-                    kv("  " + label,
-                       ("+" if not v.startswith("-") else "") + v, col)
+                    col   = (HP_COL if "attack" in k else
+                             MP_COL if "magic"  in k else HIGHLIGHT_FG)
+                    prefix = "+" if v >= 0 else ""
+                    kv("  " + label, f"{prefix}{v}", col)
 
         # ── Resistances ───────────────────────────────────────────────────────
-        res_keys = ("fire", "ice", "lightning", "water", "earth",
-                    "wind", "light", "dark", "poison", "physical")
-        res_block = re.search(r"\{[^}]*'?fire'?\s*:", raw)
-        if res_block:
-            block_str = raw[res_block.start(): raw.find("}", res_block.start()) + 1]
-            nz = nonzero([(k, v) for k, v in extract_dict(block_str)
-                          if k in res_keys])
+        if isinstance(item, Armour):
+            nz = nonzero_dict(item.resistances)
             if nz:
                 divider()
                 rows.append({"kind": "text", "text": "Resistances", "col": GOLD})
                 for k, v in nz:
-                    kv("  " + k.capitalize(), v + "%", HIGHLIGHT_FG)
+                    kv("  " + k.capitalize(), f"{v:.0%}", HIGHLIGHT_FG)
 
-        # ── Description: last plain-text (...) block ──────────────────────────
-        # Collect spans to exclude: spells block, heal block, stat/res dicts
-        excluded_spans = []
-        if heal_block:
-            excluded_spans.append(heal_block.span())
-        if spell_m:
-            excluded_spans.append(spell_m.span())
-
-        desc = ""
-        for m in reversed(list(re.finditer(r"\(([^()]{5,})\)", raw))):
-            c = m.group(1).strip()
-            pos = m.start()
-            # Skip if this match overlaps any excluded span
-            if any(s <= pos < e for s, e in excluded_spans):
-                continue
-            if (c
-                    and not c.startswith("{")
-                    and not c.startswith("'")
-                    and not re.match(r'^[\d\s\.,\-\+%]+$', c)
-                    and ":" not in c
-                    and c.lower() != item_name.lower()):
-                desc = c
-                break
+        # ── Description ───────────────────────────────────────────────────────
+        desc = getattr(item, "_description", None)
+        if desc is None:
+            desc = getattr(item, "description", "") or ""
+        # For Magic, use spell_description
+        if isinstance(item, Magic):
+            desc = getattr(item, "spell_description", "") or desc
         if desc:
             divider()
             for line in self._wrap_text(desc, max_w):
                 rows.append({"kind": "text", "text": line, "col": MUTED})
 
-        # ── Fallback ─────────────────────────────────────────────────────────
         if not rows:
-            text_rows(raw)
+            text_rows(item.name)
 
         return rows
+
 
     def _draw_panel(self, panel: Panel):
         """Single method draws any panel — inventory and spell list both use this."""
@@ -484,24 +441,32 @@ class Windows:
         pygame.draw.line(self.surface, BORDER, (px, py + 30), (px + pw, py + 30), 1)
 
         y = py + 36
-        for i, (text, is_hdr) in enumerate(panel.lines):
+        for i, entry in enumerate(panel.lines):
+            text, is_hdr = entry[0], entry[1]
             if y > py + ph - 24:
                 break
-            for out in [" ",")","[","]"]:
-                text.strip(out)
-            label = text.split("(")[0]
             if is_hdr:
-                self.txt(label, px + 10, y, "sm", GOLD)
+                self.txt(text, px + 10, y, "sm", GOLD)
             elif i == panel.cursor:
                 pygame.draw.rect(self.surface, HIGHLIGHT_BG, (px + 2, y - 1, pw - 4, 18))
-                self.txt(label, px + 10, y, "sm", HIGHLIGHT_FG)
+                self.txt(text, px + 10, y, "sm", HIGHLIGHT_FG)
             else:
-                self.txt(label, px + 10, y, "sm", TEXT)
+                self.txt(text, px + 10, y, "sm", TEXT)
             y += 20
 
-        if self._info_str:
-            item_title = panel.lines[panel.cursor][0].split("(")[0].strip()
-            rows = self._parse_item_info(self._info_str, pw - 24)
+        cur_item = panel.selected_item()
+        if cur_item is not None:
+            item_title = cur_item.name
+            rows = self._build_item_rows(cur_item, pw - 24)
+        elif self._info_str:
+            # Spell list fallback: no item object, show name only
+            item_title = self._info_str.split("(")[0].strip()
+            rows = [{"kind": "text", "text": item_title, "col": TEXT}]
+        else:
+            item_title = None
+            rows = []
+
+        if item_title:
 
             ix = px + pw
             iy = py

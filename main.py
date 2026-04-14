@@ -309,6 +309,7 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         win.center_on_point(x_, y_)
         win.set_player_stats(player)
         do_enemy_turn()
+        maze.update_visibility(player)
 
     def do_enemy_turn():
         py,px = player.location.location
@@ -317,8 +318,8 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
             for cell in row:
                 if cell.enemy and cell.enemy_entity:
                     y_,x_ = cell.location
-                    if abs(x_ - px)+abs(y_ - py)<=5:
-                        maze.update_visibility(cell.enemy_entity,4)
+                    if abs(x_ - px)+abs(y_ - py)<=3:
+                        maze.update_visibility(cell.enemy_entity,3)
                     else:
                         cell.enemy_entity.visible_cells = set()
                     cell.enemy_entity.enemy_turn(player, maze)

@@ -68,7 +68,7 @@ def _ser_item(item) -> dict | None:
             "attack":      item.attack,
             "elements":    _ser_elements(item.elements),
             "distance":    item.distance,
-            "description": item.description,
+            "description": getattr(item, "_description", item.description),
         }
     if isinstance(item, Staff):
         return {
@@ -78,7 +78,7 @@ def _ser_item(item) -> dict | None:
             "attack":      item.attack,
             "elements":    _ser_elements(item.elements),
             "stat_bonuses": item.stat_bonuses,
-            "description": item.description,
+            "description": getattr(item, "_description", item.description),
             "spells":      [_ser_magic(m) for m in item.spells.values()],
         }
     if isinstance(item, Weapon):
@@ -89,7 +89,7 @@ def _ser_item(item) -> dict | None:
             "attack":      item.attack,
             "elements":    _ser_elements(item.elements),
             "stat_bonuses": item.stat_bonuses,
-            "description": item.description,
+            "description": getattr(item, "_description", item.description),
         }
     if isinstance(item, Armour):
         return {
@@ -98,7 +98,7 @@ def _ser_item(item) -> dict | None:
             "gold":        item.value,
             "resistances": item.resistances,
             "stat_bonuses": item.stat_bonuses,
-            "description": item.description,
+            "description": getattr(item, "_description", item.description),
         }
     if isinstance(item, Healing):
         return {
@@ -190,6 +190,7 @@ def _de_item(d: dict | None):
             description = d.get("description", ""),
         )
         s.stat_bonuses = d.get("stat_bonuses", s.stat_bonuses)
+        s.description  = f"({s.elements})({s.stat_bonuses}) ({s._description})"
         return s
 
     if kind == "weapon":
@@ -201,13 +202,16 @@ def _de_item(d: dict | None):
             description = d.get("description", ""),
         )
         w.stat_bonuses = d.get("stat_bonuses", w.stat_bonuses)
+        w.description  = f"({w.elements})({w.stat_bonuses}) ({w._description})"
         return w
 
     if kind == "armour":
-        a = Armour(in_name=d["name"], gold=d["gold"])
+        a = Armour(in_name=d["name"], gold=d["gold"],
+                   description=d.get("description", ""))
         a.resistances  = d.get("resistances",  a.resistances)
         a.stat_bonuses = d.get("stat_bonuses", a.stat_bonuses)
-        a.description  = d.get("description",  "")
+        # Rebuild the formatted description now that resistances/stat_bonuses are restored
+        a.description  = f"({a.resistances}) ({a.stat_bonuses}) ({a._description})"
         return a
 
     if kind == "healing":

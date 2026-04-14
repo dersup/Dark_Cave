@@ -113,11 +113,14 @@ class Entity:
 			attacker.kills      += 1
 			attacker.stats["exp"] += dead.stats["exp"]
 			dead.give_inventory(maze.cells[dead.location.location[0]][dead.location.location[1]])
+			dead_name = dead.name
+			dy,dx = dead.location.location
 			if attacker.stats["exp"] >= 75 * attacker.level:
 				attacker.stats["exp"] = 0
 				attacker.level       += 1
 				maze.level_up(attacker)
-			return f"{dead.name} has been slain"
+			maze.cells[dy][dx].remove_enemy()
+			return f"{dead_name} has been slain"
 
 		roll  = random.randint(1, 20)
 		roll += int(self.stats["luck"] * 0.2)
@@ -254,13 +257,9 @@ class Entity:
 		return "Item not found."
 
 	def equip_weapon(self, weapon_):
-		if self.weapon == weapon_:
-			return self.unequip_weapon()
+		if isinstance(self.weapon,Weapon):
+			self.unequip_weapon()
 		self.inventory.items["Equipped"].append(weapon_)
-		for item in list(self.inventory.items["Equipped"]):
-			if item == Weapon():
-				self.inventory.items["Equipped"].remove(item)
-				break
 		for stat, val in weapon_.stat_bonuses.items():
 			self.stats[stat] += val
 		self.weapon = weapon_
@@ -271,17 +270,15 @@ class Entity:
 		for item in list(self.inventory.items["Equipped"]):
 			if isinstance(item, Weapon):
 				self.add_to_inventory(item)
-				self.inventory.items["Equipped"].remove(item)
 				for stat, val in item.stat_bonuses.items():
 					self.stats[stat] -= val
-				return self.equip_weapon(Weapon())
+				self.inventory.items["Equipped"].remove(item)
+				self.weapon = None
+				return
 
 	def equip_armor(self, armor_):
-		if self.armor == armor_:
-			return self.unequip_armor()
-		for item in list(self.inventory.items["Equipped"]):
-			if item == Armour():
-				self.inventory.items["Equipped"].remove(item)
+		if isinstance(self.armor, Armour) :
+			self.unequip_armor()
 		self.inventory.items["Equipped"].append(armor_)
 		for stat, val in armor_.stat_bonuses.items():
 			self.stats[stat] += val
@@ -295,12 +292,13 @@ class Entity:
 		for item in list(self.inventory.items["Equipped"]):
 			if isinstance(item, Armour):
 				self.add_to_inventory(item)
-				self.inventory.items["Equipped"].remove(item)
 				for stat, val in item.stat_bonuses.items():
 					self.stats[stat] -= val
 				for resist, val in item.resistances.items():
 					self.resistances[resist] -= val
-				return self.equip_armor(Armour())
+				self.inventory.items["Equipped"].remove(item)
+				self.armor = None
+				return
 
 	# ── Throw / projectile ────────────────────────────────────────────────────
 

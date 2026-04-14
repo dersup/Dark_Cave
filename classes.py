@@ -39,7 +39,7 @@ class Elements:
 # ---------------------------------------------------------------------------
 def _default_stats():
     return {"attack": 0, "defence": 0, "luck": 0,
-            "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 0}
+            "magic_defence": 0, "magic_attack": 0, "agility": 0}
 
 def _default_resistances():
     return {k: 0.00 for k in (
@@ -80,18 +80,18 @@ class Healing(Item):
                and self.name == other.name and self.healing == other.healing
 
     def __hash__(self):
-        return hash((self.name,
-                     tuple(self.healing) if isinstance(self.healing, list) else self.healing))
+        return hash((tuple(self.name+str(self.healing))))
 
 
 class Weapon(Item):
     def __init__(self, in_name="fists", gold=0, attack=-1,
                  elements=None, description=""):
         super().__init__(in_name=in_name, gold=gold, description=description)
-        self.attack       = attack
-        self.elements     = elements if elements is not None else [Elements()]
-        self.stat_bonuses = _default_stats()
-        self.description  = f"({self.elements})({self.stat_bonuses}) ({self.description})"
+        self.attack        = attack
+        self.elements      = elements if elements is not None else [Elements()]
+        self.stat_bonuses  = _default_stats()
+        self._description  = description
+        self.description   = f"({self.elements})({self.stat_bonuses}) ({description})"
 
     def __repr__(self):
         return (f"{self.name} (DMG: ({self.elements}), ATK: ({self.attack}), "
@@ -148,9 +148,10 @@ class Throwing(Weapon):
 class Armour(Item):
     def __init__(self, in_name="undergarments", gold=0, description=""):
         super().__init__(in_name=in_name, gold=gold, description=description)
-        self.resistances  = _default_resistances()
-        self.stat_bonuses = _default_stats()
-        self.description  = f"({self.resistances}) ({self.stat_bonuses}) ({self.description})"
+        self.resistances   = _default_resistances()
+        self.stat_bonuses  = _default_stats()
+        self._description  = description   # clean user-supplied text
+        self.description   = f"({self.resistances}) ({self.stat_bonuses}) ({description})"
 
     def __repr__(self):
         return f"{self.name} (G: ({self.value})) ({self.description})"
@@ -158,7 +159,7 @@ class Armour(Item):
     def __eq__(self, other):
         return (isinstance(other, Armour)
                 and self.name == other.name
-                and self.description == other.description
+                and self._description == other._description
                 and self.value == other.value)
 
     def __hash__(self):  return hash((self.name, self.value))
