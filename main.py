@@ -102,6 +102,8 @@ def _stat_allocation(win: Windows, player: Entity):
     values   = {s: 0 for s in stats}
     total    = 25
     cursor   = [0]
+    hold_timer = 0
+    HOLD_DELAY = 0.08
 
     while True:
         remaining = total - sum(values.values())
@@ -120,26 +122,37 @@ def _stat_allocation(win: Windows, player: Entity):
                 "W/S:navigate    A/D or ◄►:adjust    Enter:confirm")
         win.txt(hint, win.w // 2, win.h * 5 // 6, "sm", COLOURS["gray"], center=True)
         pygame.display.flip()
-        win.clock.tick(30)
-
+        dt = win.clock.tick(30) / 1000
+        keys = pygame.key.get_pressed()
+        up_keys = (pygame.K_UP, pygame.K_w)
+        down_keys = (pygame.K_DOWN, pygame.K_s)
+        left_keys = (pygame.K_LEFT, pygame.K_a)
+        right_keys = (pygame.K_RIGHT, pygame.K_d)
         for ev in pygame.event.get():
-            if ev.type == pygame.QUIT:        pygame.quit(); sys.exit()
+            if ev.type == pygame.QUIT: pygame.quit(); sys.exit()
             if ev.type == pygame.KEYDOWN:
-                if ev.key in (pygame.K_UP, pygame.K_w):
+                if ev.key in up_keys:
                     cursor[0] = (cursor[0] - 1) % len(stats)
-                elif ev.key in (pygame.K_DOWN, pygame.K_s):
+                elif ev.key in down_keys:
                     cursor[0] = (cursor[0] + 1) % len(stats)
-                elif ev.key in (pygame.K_RIGHT, pygame.K_d):
-                    if remaining > 0:
-                        values[stats[cursor[0]]] += 1
-                elif ev.key in (pygame.K_LEFT, pygame.K_a):
-                    if values[stats[cursor[0]]] > 0:
-                        values[stats[cursor[0]]] -= 1
-                elif ev.key == pygame.K_RETURN:
-                    if remaining == 0:
-                        for s, v in values.items():
-                            player.stats[s] = v
-                        return
+                elif ev.key in right_keys and remaining > 0:
+                    values[stats[cursor[0]]] += 1
+                elif ev.key in left_keys and values[stats[cursor[0]]] > 0:
+                    values[stats[cursor[0]]] -= 1
+                elif ev.key == pygame.K_RETURN and remaining == 0:
+                    for s, v in values.items():
+                        player.stats[s] = v
+                    return
+        if any(keys[k] for k in right_keys) or any(keys[k] for k in left_keys):
+            hold_timer -= dt
+            if hold_timer <= 0:
+                hold_timer = HOLD_DELAY
+                if any(keys[k] for k in right_keys) and remaining > 0:
+                    values[stats[cursor[0]]] += 1
+                elif any(keys[k] for k in left_keys) and values[stats[cursor[0]]] > 0:
+                    values[stats[cursor[0]]] -= 1
+        else:
+            hold_timer = 0
 
 
 # ===============================================================================
