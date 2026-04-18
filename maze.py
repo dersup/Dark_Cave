@@ -1,6 +1,7 @@
 import pygame
 import random
 import sys
+import asyncio
 from pathlib import Path
 
 from drawing import Cell, Point
@@ -222,15 +223,16 @@ class Maze:
     # -----------------------------------------------------------------------
     # Level progression
     # -----------------------------------------------------------------------
-    def next_level(self, player):
+    async def next_level(self, player):
         from main import main
+        self._win._ui_blocked = True
         self.level += 1
         self.cells = []
         self.visible_cells = set()
         self.create_maze()
         self.player_init(player)
         self.monsters_init()
-        main(player, self._win, self)
+        await main(player, self._win, self)
 
-    def level_up(self, player):
-        self._win.show_level_up(player)
+    async def level_up(self, player):
+        await self._win.show_level_up(player)

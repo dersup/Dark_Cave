@@ -1,5 +1,6 @@
 import random
 import re
+import asyncio
 
 from unicodedata import category
 
@@ -118,7 +119,7 @@ class Entity:
 			if attacker.stats["exp"] >= 75 * attacker.level:
 				attacker.stats["exp"] = 0
 				attacker.level       += 1
-				maze.level_up(attacker)
+				asyncio.ensure_future(maze.level_up(attacker))
 			# Trigger death animation on dead entity's sprite (one-shot)
 			if hasattr(dead, '_sprite') and dead._sprite is not None:
 				dead._sprite.set_state("die", one_shot=True)
@@ -368,7 +369,7 @@ class Entity:
 			_done(); return "You bump into a wall."
 		if movement != "move":
 			if "continue" in movement:
-				maze.next_level(self)
+				asyncio.ensure_future(maze.next_level(self))
 			_done(); return movement
 
 		row, col = next_cell(row_old, col_old, direction)

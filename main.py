@@ -10,6 +10,7 @@
 
 import pygame
 import sys
+import asyncio
 
 from constants import BASE_WEAPONS, COLOURS, BASE_STAFFS
 from windows    import Windows
@@ -26,10 +27,10 @@ from save_load  import save_game, load_game, save_exists, delete_save
 
 def play_music():
     pygame.mixer.init()
-    pygame.mixer.music.load("assets/music/Iron_Descent.mp3")
+    pygame.mixer.music.load("assets/music/Iron_Descent.ogg")
     pygame.mixer.music.play(-1)
 
-def _menu(win: Windows, prompt: str, options: list[str]) -> str:
+async def _menu(win: Windows, prompt: str, options: list[str]) -> str:
     # Arrow-key / WS selection menu. Returns chosen string.
     cursor = [0]
 
@@ -44,6 +45,7 @@ def _menu(win: Windows, prompt: str, options: list[str]) -> str:
         win.txt("Up/Down / W/S  navigate       Enter  confirm", win.w // 2, win.h * 3 // 4, "sm", COLOURS["gray"], center=True)
         pygame.display.flip()
         win.clock.tick(30)
+        await asyncio.sleep(0)
 
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:        pygame.quit(); sys.exit()
@@ -56,7 +58,7 @@ def _menu(win: Windows, prompt: str, options: list[str]) -> str:
                     return options[cursor[0]]
 
 
-def _text_input(win: Windows, prompt: str, placeholder: str = "") -> str:
+async def _text_input(win: Windows, prompt: str, placeholder: str = "") -> str:
     # Single-line text entry. Enter confirms; blank → placeholder.
     buf     = ""
     blink   = [True]
@@ -77,6 +79,7 @@ def _text_input(win: Windows, prompt: str, placeholder: str = "") -> str:
         if timer[0] >= 500:
             blink[0]  = not blink[0]
             timer[0]  = 0
+        await asyncio.sleep(0)
 
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:        pygame.quit(); sys.exit()
@@ -89,7 +92,7 @@ def _text_input(win: Windows, prompt: str, placeholder: str = "") -> str:
                     buf += ev.unicode
 
 
-def _stat_allocation(win: Windows, player: Entity):
+async def _stat_allocation(win: Windows, player: Entity):
     """
     Point-buy stat screen.
     Left/Right (or A/D) to add/remove points from highlighted stat.
@@ -121,6 +124,7 @@ def _stat_allocation(win: Windows, player: Entity):
         win.txt(hint, win.w // 2, win.h * 5 // 6, "sm", COLOURS["gray"], center=True)
         pygame.display.flip()
         dt = win.clock.tick(30) / 1000
+        await asyncio.sleep(0)
         keys = pygame.key.get_pressed()
         up_keys = (pygame.K_UP, pygame.K_w)
         down_keys = (pygame.K_DOWN, pygame.K_s)
@@ -157,12 +161,12 @@ def _stat_allocation(win: Windows, player: Entity):
 #  Start menu  (new game / continue)
 # ===============================================================================
 
-def start_menu(win: Windows) -> tuple:
+async def start_menu(win: Windows) -> tuple:
 #    Show the start screen.
 #    Returns (player, maze) where either or both may be None
 #    (None, None  → new game;  (player, maze) → loaded save).
     play_music()
-    def yes_no(message):
+    async def yes_no(message):
         x = win.w // 2
         y = win.h // 2
         while True:
@@ -170,6 +174,7 @@ def start_menu(win: Windows) -> tuple:
             win.txt("Y/N",x,y+70,"md",COLOURS["red"],center=True)
             win.clock.tick(30)
             pygame.display.flip()
+            await asyncio.sleep(0)
             for ev_ in pygame.event.get():
                 if ev_.type == pygame.QUIT:
                     pygame.quit(); sys.exit()
@@ -197,6 +202,7 @@ def start_menu(win: Windows) -> tuple:
 
         pygame.display.flip()
         win.clock.tick(30)
+        await asyncio.sleep(0)
 
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
@@ -220,7 +226,7 @@ def start_menu(win: Windows) -> tuple:
 
                     if choice == "New Game":
                         if has_save:
-                            yn = yes_no("are you sure you want to start a new game?, this will overwrite your save.")
+                            yn = await yes_no("are you sure you want to start a new game?, this will overwrite your save.")
                             if yn:
                                 delete_save()
                             else:
@@ -235,7 +241,7 @@ def start_menu(win: Windows) -> tuple:
 #  Main game
 # ==============================================================================
 
-def main(player: Entity = None, win: Windows = None, maze: Maze = None):
+async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
     # -- Window ---------------------------------------------------------
     play_music()
     if win is None:
@@ -248,30 +254,32 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         win._log            = []
         win._log_timer      = []
 
+    win._ui_blocked = False
+
     # -- Start menu (only on very first call) --------------------------------
     if player is None and maze is None:
-        loaded_player, loaded_maze = start_menu(win)
+        loaded_player, loaded_maze = await start_menu(win)
         if loaded_player:
             player = loaded_player
             maze   = loaded_maze
 
     # -- Character creation (only when no save was loaded) -------------------
     if player is None:
-        gender_choice = _menu(win, "Choose your hero's gender",
+        gender_choice = await _menu(win, "Choose your hero's gender",
                                ["Male", "Female", "Non-Binary"])
         gender  = gender_choice.lower().replace("-", " ")
         default = name_gen(gender if gender in ("male","female") else "")
-        name    = _text_input(win, "What is your hero's name?", default)
+        name    = await _text_input(win, "What is your hero's name?", default)
         available = list(BASE_WEAPONS.keys())
         available.append(list(BASE_STAFFS.keys())[0])
-        weapon  = _menu(win,"choose your weapon", available)
+        weapon  = await _menu(win,"choose your weapon", available)
         if weapon == "apprentice staff":
             weapon = generate_staff("player","apprentice staff")
         else:
             weapon = generate_weapon_loot("player",weapon)
         armor   = generate_armor_loot("player")
         player  = Entity(name, 100, 100, armor_=armor, weapon_=weapon)
-        _stat_allocation(win, player)
+        await _stat_allocation(win, player)
         for _ in range(2):
             player.add_to_inventory(generate_items_loot("player"))
 
@@ -343,7 +351,7 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
             alive = False
             win.show_game_over(
                 player, maze,
-                on_retry=lambda: main(win=win, maze=maze),
+                on_retry=lambda: asyncio.ensure_future(main(win=win, maze=maze)),
                 on_quit=_quit
             )
 
@@ -395,7 +403,7 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         loaded_p, loaded_m = load_game(win)
         if loaded_p and loaded_m:
             win.log("Save loaded — restarting from save point.")
-            main(player=loaded_p, win=win, maze=loaded_m)
+            asyncio.ensure_future(main(player=loaded_p, win=win, maze=loaded_m))
         else:
             win.log("No save file found.")
 
@@ -492,10 +500,12 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
 
     # -- Game loop ------------------------------------------------------------
     while True:
+        await asyncio.sleep(0)
+        if win._ui_blocked:
+            continue
         if not win.tick():
             _quit()
         redraw()
 
 
-if __name__ == "__main__":
-    main()
+asyncio.run(main())

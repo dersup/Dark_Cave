@@ -1,6 +1,7 @@
 import pygame
 import sys
 import time
+import asyncio
 
 # ---------------------------------------------------------------------------
 # Palette & typography
@@ -110,6 +111,7 @@ class Windows:
         self._keys:      dict = {}
         self._scheduled: list = []
         self.animating_cells: list = []
+        self._ui_blocked = False
 
     # ── Shim properties (entity.py uses win.inventory_show etc.) ─────────────
 
@@ -221,7 +223,8 @@ class Windows:
 
     # ── Level-up screen (blocking sub-loop) ───────────────────────────────────
 
-    def show_level_up(self, player):
+    async def show_level_up(self, player):
+        self._ui_blocked = True
         options = ["attack", "defence", "luck",
                    "magic_defence", "magic_attack", "agility"]
         cursor = [0]
@@ -246,6 +249,7 @@ class Windows:
 
         render()
         while points[0] > 0:
+            await asyncio.sleep(0)
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT:
                     pygame.quit(); sys.exit()
@@ -258,6 +262,7 @@ class Windows:
                         player.stats[options[cursor[0]]] += 1
                         points[0] -= 1
             render()
+        self._ui_blocked = False
 
     # ── Game-over screen ──────────────────────────────────────────────────────
 
