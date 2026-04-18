@@ -119,8 +119,15 @@ class Entity:
 				attacker.stats["exp"] = 0
 				attacker.level       += 1
 				maze.level_up(attacker)
+			# Trigger death animation on dead entity's sprite (one-shot)
+			if hasattr(dead, '_sprite') and dead._sprite is not None:
+				dead._sprite.set_state("die", one_shot=True)
 			maze.cells[dy][dx].remove_enemy()
 			return f"{dead_name} has been slain"
+
+		# Trigger attack animation on the attacker
+		if hasattr(self, '_sprite') and self._sprite is not None:
+			self._sprite.set_state("attack", one_shot=True)
 
 		roll  = random.randint(1, 20)
 		roll += int(self.stats["luck"] * 0.2)
@@ -142,6 +149,10 @@ class Entity:
 
 		if not dam_taken:
 			return f"{enemy.name} took no damage"
+
+		# Trigger damage animation on the target (if still alive and has a sprite)
+		if enemy.health > 0 and hasattr(enemy, '_sprite') and enemy._sprite is not None:
+			enemy._sprite.set_state("dmg", one_shot=True)
 
 		parts   = list(dam_taken.items())
 		message = f"{self.name} hits {enemy.name} with {weapon_.name} for "
@@ -236,10 +247,10 @@ class Entity:
 		item_name = re.sub(r'^\d+x\s*', '', item_name).strip()
 		for category, items in self.inventory.items.items():
 			for item_ in items:
-				if item_.name != item_name:
+				if item_.name.lower() != item_name.lower():
 					continue
 				if isinstance(item_, Healing):
-					self.health = min(self.max_health, self.health + item_.healing[0])
+					self.health = min(self.max_health, self.health + item_.healing[0].damage)
 					self.remove_item(item_)
 					return f"{self.name} heals to {self.health}/{self.max_health}"
 				if isinstance(item_, Throwing):
@@ -417,15 +428,17 @@ class Entity:
 			if bx == ax - 1: return "left"
 			if bx == ax + 1: return "right"
 			return None
+		if "troll" in self.name.lower():
+			self.health = min(10 + self.health,self.max_health)
 
 		if not self.location:
-			_done(); return
+			_done(); return None
 		my_row, my_col = self.location.location
 
 		if self.health <= 0:
 			self.give_inventory(maze.cells[my_row][my_col])
 			maze.cells[my_row][my_col].remove_enemy()
-			return
+			return None
 
 		p_row, p_col = player.location.location
 		dist_r = my_row - p_row
@@ -434,15 +447,19 @@ class Entity:
 		# Adjacent → try to attack through an open wall
 		if abs(dist_c) + abs(dist_r) == 1:
 			attack_conds = [
-				(dist_c == -1, "right"),
-				(dist_c ==  1, "left"),
-				(dist_r ==  1, "top"),
-				(dist_r == -1, "bottom"),
+				(dist_c == -1, "right"),  # player is to the right
+				(dist_c == 1, "left"),  # player is to the left
+				(dist_r == 1, "top"),  # player is above
+				(dist_r == -1, "bottom"),  # player is below
 			]
 			for cond, wall in attack_conds:
 				if cond and not getattr(self.location, wall):
-					self.attack_target(player, self.weapon, maze)
-					_done(); return
+					# also verify the player's side wall is open
+					opposite = {"right": "left", "left": "right", "top": "bottom", "bottom": "top"}
+					if not getattr(player.location, opposite[wall]):
+						self.attack_target(player, self.weapon, maze)
+						_done();
+						return self.location
 		path = None
 		for (y,x) in self.visible_cells:
 			if maze.cells[y][x].player_entity:
@@ -459,7 +476,7 @@ class Entity:
 			        if self.location.can_move(d, maze, is_enemy=True) != "bump"]
 			if not dirs:
 				_done();
-				return
+				return self.location
 			direction = random.choice(dirs)
 			row, col = next_cell(my_row, my_col, direction)
 		if 0 <= row < maze.num_rows and 0 <= col < maze.num_cols:
@@ -468,4 +485,4 @@ class Entity:
 			maze.cells[my_row][my_col].remove_enemy()
 			maze.cells[row][col].set_enemy(self)
 			self.location = maze.cells[row][col]
-		_done()
+			_done(); return self.location

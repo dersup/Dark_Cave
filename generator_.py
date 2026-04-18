@@ -346,8 +346,7 @@ def generate_enemy(level=1):
                             ENEMIES[base_name]["stats"]["mana"]* RARITY_BONUS[rarity],
                             base_name)
         while i <= RARITY_BONUS[rarity]:
-            if random.uniform(0, 1) <= level * 0.1:
-                enemy.add_to_inventory(generate_items_loot(base_name))
+            enemy.add_to_inventory(generate_items_loot(base_name))
             for stat in list(ENEMIES[base_name]["stats"].keys())[2:]:
                 enemy.stats[stat] += random.randint(0,3)
             enemy.gold += random.randint(1, 9) + ENEMIES[base_name]["stats"]["gold"]
@@ -356,9 +355,7 @@ def generate_enemy(level=1):
 
     else:
         enemy = make_entity(base_name, ENEMIES[base_name]["stats"]["health"], ENEMIES[base_name]["stats"]["mana"], base_name)
-
-    if random.uniform(0, 1) <= level * 0.1:
-        enemy.add_to_inventory(generate_items_loot(base_name))
+    enemy.add_to_inventory(generate_items_loot(base_name))
     enemy.gold = ENEMIES[base_name]["stats"]["gold"]
     return enemy
 

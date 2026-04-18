@@ -1,5 +1,3 @@
-from pathlib import Path
-
 #The Dark Cave — Pygame edition
 #------------------------------
 #Desktop:  python main.py
@@ -302,7 +300,8 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
     #  Game-logic helpers
     # =========================================================================
     def redraw():
-        win.surface.fill((10, 8, 12))
+        win.surface.fill(COLOURS["black"])
+        maze.update_visibility(player)
         for row in maze.cells:
             for cell in row:
                 cell.draw(player)
@@ -317,12 +316,10 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
     def after_player_move():
         nonlocal busy
         busy = False
-        maze.update_visibility(player)
         x_,y_ = player.location.cent.x, player.location.cent.y
         win.center_on_point(x_, y_)
         win.set_player_stats(player)
         do_enemy_turn()
-        maze.update_visibility(player)
 
     def do_enemy_turn():
         py,px = player.location.location
@@ -335,7 +332,12 @@ def main(player: Entity = None, win: Windows = None, maze: Maze = None):
                         maze.update_visibility(cell.enemy_entity,3)
                     else:
                         cell.enemy_entity.visible_cells = set()
-                    cell.enemy_entity.enemy_turn(player, maze)
+                    new_cell = cell.enemy_entity.enemy_turn(player, maze)
+                    if new_cell:
+                        source_visible = tuple(cell.location) in player.visible_cells
+                        dest_visible = new_cell and tuple(new_cell.location) in player.visible_cells
+                        if (source_visible or dest_visible) and cell not in win.animating_cells:
+                            win.animating_cells.append(cell)
         win.set_player_stats(player)
         if player.health <= 0:
             alive = False

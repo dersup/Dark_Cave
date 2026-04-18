@@ -80,6 +80,11 @@ class Cell:
         self._anim_dur = 0.18    # seconds
         self._anim_who = None    # "player" | "enemy"
         self._anim_cb  = None
+        self._anim_entity = None
+
+        # sprite references (set lazily when entities are assigned)
+        self._player_sprite = None
+        self._enemy_sprite  = None
 
     # -----------------------------------------------------------------------
     # Visibility
@@ -110,7 +115,7 @@ class Cell:
             self._screen(p1), self._screen(p2), 2
         )
 
-    def draw(self, player,start=False):
+    def draw(self, player, start=False):
         if start:
             return   # generation phase — don't draw individual cells
 
@@ -143,23 +148,53 @@ class Cell:
             if self.inventory.length():
                 self._dot(self.cent, 3, "gold")
 
-            # Player / enemy (if not mid-animation)
+            # Player sprite (if not mid-animation)
             if self.player_entity and self._anim_who != "player":
-                # Also suppress if another cell is animating the player toward us
                 animating = any(
                     c._anim_who == "player" for c in self._win.animating_cells if c is not self
                 )
                 if not animating:
-                    self._dot(self.cent, 7, "blue",player=self.player_entity)
+                    # Keep sprite facing in sync with entity
+                    if self._player_sprite and getattr(self.player_entity, 'facing', None):
+                        self._player_sprite.set_facing(self.player_entity.facing)
+                    self._draw_entity_sprite(self.cent, self._player_sprite, "player")
+
+            # Enemy sprite (if not mid-animation)
             if self.enemy_entity and self._anim_who != "enemy":
                 animating = any(
                     c._anim_dst_cell is self for c in self._win.animating_cells
                     if c._anim_who == "enemy"
                 )
                 if not animating:
-                    self._draw_enemy_dot(self.cent)
+                    if self._enemy_sprite and getattr(self.enemy_entity, 'facing', None):
+                        self._enemy_sprite.set_facing(self.enemy_entity.facing)
+                    self._draw_entity_sprite(self.cent, self._enemy_sprite, "enemy")
 
-    def _dot(self, pt, r, fill, outline=None,player=None):
+    # -----------------------------------------------------------------------
+    # Sprite drawing helpers
+    # -----------------------------------------------------------------------
+    def _draw_entity_sprite(self, pt, sprite, who):
+        """
+        Draw a sprite-sheet frame centred on the cell.
+        All frames are 32×32 matching the cell size.
+        Falls back to a coloured dot if the sprite is unavailable.
+        """
+        if sprite is not None:
+            frame = sprite.get_frame()
+            if frame is not None:
+                ox, oy = self._win.camera
+                fw, fh = frame.get_size()
+                draw_x = int(pt.x + ox) - fw // 2
+                draw_y = int(pt.y + oy) - fh // 2
+                self._win.surface.blit(frame, (draw_x, draw_y))
+                return
+        # Fallback coloured dot
+        if who == "player":
+            self._dot(pt, 7, "blue", player=self.player_entity)
+        else:
+            self._draw_enemy_dot(pt)
+
+    def _dot(self, pt, r, fill, outline=None, player=None):
         cx, cy = self._screen(pt)
         if player:
             offsets = {"up": (0, -5), "down": (0, 5), "left": (-5, 0), "right": (5, 0)}
@@ -170,20 +205,28 @@ class Cell:
             pygame.draw.circle(self._win.surface, col(outline), (cx, cy), r, 3)
 
     def _draw_enemy_dot(self, pt):
+        """Fallback dot renderer (used when sprite is unavailable)."""
         name = self.enemy_entity.name.lower()
         outline = None
         if "rare"        in name: outline = "orange"
         elif "epic"      in name: outline = "blue"
         elif "legendary" in name: outline = "gold"
 
-        if   "skeleton"  in name: fill, r = "gray",       7
-        elif "orc"       in name: fill, r = "dark_green", 12
-        elif "goblin"    in name: fill, r = "green",      5
-        elif "troll"     in name: fill, r = "brown",      12
-        elif "wraith"    in name: fill, r = "white",      7
-        elif "vampire"   in name: fill, r = "red",        7
-        elif "dark mage" in name: fill, r = "purple",     7
-        else:                     fill, r = "gray",       10
+        if   "skeleton"      in name: fill, r = "gray",       7
+        elif "zombie"        in name: fill, r = "dark_green",  7
+        elif "orc"           in name: fill, r = "dark_green", 12
+        elif "goblin"        in name: fill, r = "green",       5
+        elif "troll"         in name: fill, r = "brown",      12
+        elif "wraith"        in name: fill, r = "white",       7
+        elif "vampire"       in name: fill, r = "red",         7
+        elif "dark mage"     in name: fill, r = "purple",      7
+        elif "cyclops"       in name: fill, r = "brown",      12
+        elif "minotaur"      in name: fill, r = "brown",      12
+        elif "centaur"       in name: fill, r = "brown",      10
+        elif "yeti"          in name: fill, r = "white",      12
+        elif "pumpkin"       in name: fill, r = "orange",      8
+        elif "slime"         in name: fill, r = "green",       6
+        else:                         fill, r = "gray",       10
         self._dot(pt, r, fill, outline)
 
     # -----------------------------------------------------------------------
@@ -198,10 +241,14 @@ class Cell:
         self._anim_t0  = time.time()
         self._anim_dur = duration / 1000.0
         self._anim_who = "player" if self.player_entity else "enemy"
+        self._anim_entity = self.enemy_entity
+        # Keep sprite references for animation
+        self._anim_player_sprite = self._player_sprite
+        self._anim_enemy_sprite  = self._enemy_sprite
         self._anim_cb  = on_complete
 
-    def tick_anim(self,player):
-        """Call once per frame. Draws moving dot; fires callback when done."""
+    def tick_anim(self, player):
+        """Call once per frame. Draws moving sprite/dot; fires callback when done."""
         import time
         if self._anim_t0 is None:
             return False
@@ -212,19 +259,41 @@ class Cell:
         cy = self._anim_src.y + (self._anim_dst.y - self._anim_src.y) * t_ease
         pt = Point(cx, cy)
         if self._anim_who == "player":
-            self._win.center_on_point(cx,cy)
-            self._dot(pt, 7, "blue",player=player)
-        elif self.enemy_entity:
-            # temporarily swap cent for the dot helper
+            self._win.center_on_point(cx, cy)
+            # Set walk state + facing during movement
+            if hasattr(self, '_anim_player_sprite') and self._anim_player_sprite:
+                if player and getattr(player, 'facing', None):
+                    self._anim_player_sprite.set_facing(player.facing)
+                self._anim_player_sprite.set_state("walk")
+                self._draw_entity_sprite(pt, self._anim_player_sprite, "player")
+            else:
+                self._dot(pt, 7, "blue", player=player)
+        elif self._anim_entity:
             real = self.cent
             self.cent = pt
-            self._draw_enemy_dot(pt)
+            real_entity = self.enemy_entity
+            self.enemy_entity = self._anim_entity
+            sprite = getattr(self, '_anim_enemy_sprite', None)
+            if sprite:
+                if getattr(self._anim_entity, 'facing', None):
+                    sprite.set_facing(self._anim_entity.facing)
+                sprite.set_state("walk")
+                self._draw_entity_sprite(pt, sprite, "enemy")
+            else:
+                self._draw_enemy_dot(pt)
+            self.enemy_entity = real_entity
             self.cent = real
         if t >= 1.0:
             cb = self._anim_cb
             self._anim_t0  = None
             self._anim_who = None
             self._anim_cb  = None
+            self._anim_entity = None
+            # Reset sprites to idle after movement
+            if hasattr(self, '_anim_player_sprite') and self._anim_player_sprite:
+                self._anim_player_sprite.set_state("idle")
+            if hasattr(self, '_anim_enemy_sprite') and self._anim_enemy_sprite:
+                self._anim_enemy_sprite.set_state("idle")
             if cb:
                 cb()
             return False
@@ -275,18 +344,36 @@ class Cell:
     def set_player(self, entity):
         self.player = True
         self.player_entity = entity
+        # Attach or reuse sprite
+        if not hasattr(entity, '_sprite') or entity._sprite is None:
+            from sprites import make_sprite
+            entity._sprite = make_sprite("player")
+        self._player_sprite = entity._sprite
+        self._player_sprite.set_state("idle")
+        # Apply facing from entity
+        if getattr(entity, 'facing', None):
+            self._player_sprite.set_facing(entity.facing)
 
     def remove_player(self):
         self.player = False
         self.player_entity = None
+        self._player_sprite = None
 
     def set_enemy(self, entity):
         self.enemy = True
         self.enemy_entity = entity
+        if not hasattr(entity, '_sprite') or entity._sprite is None:
+            from sprites import make_sprite
+            entity._sprite = make_sprite(entity.name)
+        self._enemy_sprite = entity._sprite
+        self._enemy_sprite.set_state("idle")
+        if getattr(entity, 'facing', None):
+            self._enemy_sprite.set_facing(entity.facing)
 
     def remove_enemy(self):
         self.enemy = False
         self.enemy_entity = None
+        self._enemy_sprite = None
 
     # -----------------------------------------------------------------------
     # Inventory helpers
@@ -308,3 +395,6 @@ class Cell:
         if not isinstance(other, Cell):
             return NotImplemented
         return self.location == other.location
+
+    def __hash__(self):
+        return hash(tuple(self.location))
