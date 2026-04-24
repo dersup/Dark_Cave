@@ -1,7 +1,9 @@
 """
 save_load.py  —  Save / Load system for The Dark Cave
 ======================================================
-Save file: saves/savegame.json  (created next to main.py)
+Save location is platform-dependent (see save_adapter.py):
+  - Desktop:  saves/savegame.json
+  - Browser:  localStorage key "dark_cave_save" (via pygbag)
 
     save_game(player, maze)          -> None
     load_game(win)                   -> (player, maze) | (None, None)
@@ -17,20 +19,11 @@ Enemies' locations are re-linked the same way.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
 
-from classes import (
-    Elements, Item, Healing, Weapon, Staff, Throwing, Armour, Magic, Inventory
-)
+from classes import Elements, Item, Healing, Weapon, Staff, Throwing, Armour, Magic, Inventory
 from entity import Entity
-
-
-# ---------------------------------------------------------------------------
-# Directory
-# ---------------------------------------------------------------------------
-SAVE_DIR  = Path("saves")
-SAVE_FILE = SAVE_DIR / "savegame.json"
+from save_adapter import read_save, write_save, delete_save_file, save_exists_now
 
 
 # ===========================================================================
@@ -390,66 +383,41 @@ def _de_maze_into(maze, maze_data: dict):
         cell.set_enemy(enemy)
 
 
-def save_game(player: Entity, maze) -> str:
-    #Serialise player + maze to JSON.
-    #Returns a human-readable status string.
-    SAVE_DIR.mkdir(exist_ok=True)
-    data = {
-        "player": _ser_player(player),
-        "maze":   _ser_maze(maze),
-    }
-    with open(SAVE_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-    return f"Game saved to {SAVE_FILE}"
 
+def save_game(player, maze) -> str:
+    data = {"player": _ser_player(player), "maze": _ser_maze(maze)}
+    write_save(json.dumps(data, indent=2))
+    return "Game saved."
 
 def load_game(win) -> tuple:
-    #Deserialise player + maze from JSON.
-    #Returns (player, maze) on success, or (None, None) if no save exists.
-    #win is the Windows instance (needed to construct Maze).
-
-    if not SAVE_FILE.exists():
+    text = read_save()
+    if not text:
         return None, None
-
-    with open(SAVE_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    # ── Reconstruct player ───────────────────────────────────────────────────
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        win.log("Save file is corrupt.")
+        return None, None
     player = _de_player(data["player"])
     player_rc = data["player"].get("location_rc")
-
-    # ── Reconstruct maze ─────────────────────────────────────────────────────
     from maze import Maze
     maze_data = data["maze"]
-
     maze = Maze(maze_data["num_rows"], maze_data["num_cols"], win)
     maze.level = maze_data["level"]
     win.set_level(maze.level)
-
-    # Re-generate the cell grid (tiles, geometry) then overwrite walls/entities
     maze.create_maze()
     _de_maze_into(maze, maze_data)
-
-    # ── Link player to saved cell ─────────────────────────────────────────────
     if player_rc:
         r, c = player_rc
         cell = maze.cells[r][c]
         cell.set_player(player)
         player.location = cell
     else:
-        # Fallback: drop player at [0][0]
         maze.player_init(player)
-
     return player, maze
 
-
 def delete_save() -> bool:
-    #Remove the save file. Returns True if it existed.
-    if SAVE_FILE.exists():
-        SAVE_FILE.unlink()
-        return True
-    return False
-
+    return delete_save_file()
 
 def save_exists() -> bool:
-    return SAVE_FILE.exists()
+    return save_exists_now()

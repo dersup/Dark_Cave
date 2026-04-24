@@ -216,7 +216,7 @@ MOB_SPRITE_DB: dict[str, dict[str, tuple]] = {
     "green slime": _slime_sheets(f"{_SL}/Green_Slime", "SlimeGreen",
                                  idle_frames=8, jump_frames=4, dmg_frames=4, die_frames=9),
 
-    "blue slime":  _slime_sheets(f"{_SL}/Blue _Slime", "BlueSlime",
+    "blue slime":  _slime_sheets(f"{_SL}/Blue_Slime", "BlueSlime",
                                  idle_frames=8, jump_frames=4, dmg_frames=4, die_frames=9),
 
     "mother slime green": _slime_sheets(f"{_SL}/Green_Mother_Slime", "MotherSlimeGreen",
@@ -419,3 +419,51 @@ class AnimSprite:
 def make_sprite(mob_key: str) -> AnimSprite:
     """Return a fresh AnimSprite for the given mob key (case-insensitive)."""
     return AnimSprite(mob_key.lower())
+
+async def preload_sprites():
+    """Load all sprite sheets up-front AND pre-slice frame lists into
+    AnimSprite._sheet_cache so the first render of each mob doesn't stall.
+
+    Yields between sheets so the browser frame pump can run during loading.
+    """
+    import asyncio
+    seen_paths = set()
+    # Preload at the same render size that _get_frames uses (CELL_SIZE*2).
+    render_size = CELL_SIZE * 2
+
+    for mob_key, states in MOB_SPRITE_DB.items():
+        for state, (path_rel, n_frames, _ms) in states.items():
+            if path_rel in seen_paths:
+                continue
+            seen_paths.add(path_rel)
+            p = Path(path_rel)
+            if not p.exists():
+                continue
+
+            sheet = pygame.image.load(str(p)).convert_alpha()
+            w, h = sheet.get_size()
+            n_rows = max(1, h // FRAME_SIZE)
+            AnimSprite._row_count_cache[path_rel] = n_rows
+            actual_frames = min(n_frames, w // FRAME_SIZE)
+
+            # Build the two facings we actually render with.
+            for facing in ("right", "left"):
+                row_idx, flip = _row_for_facing(facing, n_rows)
+                cache_key = (path_rel, row_idx, flip, CELL_SIZE)
+                if cache_key in AnimSprite._sheet_cache:
+                    continue
+                y = row_idx * FRAME_SIZE
+                if y + FRAME_SIZE > h:
+                    y = 0
+                frames: list[pygame.Surface] = []
+                for i in range(actual_frames):
+                    rect = pygame.Rect(i * FRAME_SIZE, y, FRAME_SIZE, FRAME_SIZE)
+                    sub = sheet.subsurface(rect).copy()
+                    if flip:
+                        sub = pygame.transform.flip(sub, True, False)
+                    sub = pygame.transform.scale(sub, (render_size, render_size))
+                    frames.append(sub)
+                AnimSprite._sheet_cache[cache_key] = frames
+
+            # Yield after each sheet so we don't starve the frame pump.
+            await asyncio.sleep(0)

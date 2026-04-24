@@ -2,13 +2,12 @@ import pygame
 import random
 import sys
 import asyncio
+from collections import deque
 from pathlib import Path
 
 from drawing import Cell, Point
 from entity import Entity
 from generator_ import generate_enemy
-
-sys.setrecursionlimit(4000)
 
 
 class Maze:
@@ -93,24 +92,34 @@ class Maze:
         self._reset_visited()
 
     def _carve_passages(self, row=0, col=0):
-        """Recursive back-tracker maze generation."""
+        """Iterative back-tracker maze generation.
+
+        Previously this was recursive — for a 10x10 maze that's 100-deep on the
+        Python stack, which works on desktop CPython with a raised limit but is
+        fragile in WASM (Emscripten's stack is tighter and a blown stack shows
+        up as a silent tab freeze rather than a Python exception).
+        """
+        stack = [(row, col)]
         self.cells[row][col].visited = True
-        neighbours = []
-        for dr, dc in [(-1,0),(1,0),(0,-1),(0,1)]:
-            r, c = row+dr, col+dc
-            if 0 <= r < self.num_rows and 0 <= c < self.num_cols:
-                if not self.cells[r][c].visited:
-                    neighbours.append((r, c, dr, dc))
-        random.shuffle(neighbours)
-        for r, c, dr, dc in neighbours:
-            if self.cells[r][c].visited:
+        while stack:
+            r0, c0 = stack[-1]
+            neighbours = []
+            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                r, c = r0 + dr, c0 + dc
+                if 0 <= r < self.num_rows and 0 <= c < self.num_cols:
+                    if not self.cells[r][c].visited:
+                        neighbours.append((r, c, dr, dc))
+            if not neighbours:
+                stack.pop()
                 continue
+            r, c, dr, dc = random.choice(neighbours)
             # knock down the shared wall
-            if dr == -1: self.cells[row][col].top    = False; self.cells[r][c].bottom = False
-            if dr ==  1: self.cells[row][col].bottom = False; self.cells[r][c].top    = False
-            if dc == -1: self.cells[row][col].left   = False; self.cells[r][c].right  = False
-            if dc ==  1: self.cells[row][col].right  = False; self.cells[r][c].left   = False
-            self._carve_passages(r, c)
+            if dr == -1: self.cells[r0][c0].top    = False; self.cells[r][c].bottom = False
+            if dr ==  1: self.cells[r0][c0].bottom = False; self.cells[r][c].top    = False
+            if dc == -1: self.cells[r0][c0].left   = False; self.cells[r][c].right  = False
+            if dc ==  1: self.cells[r0][c0].right  = False; self.cells[r][c].left   = False
+            self.cells[r][c].visited = True
+            stack.append((r, c))
 
     def _reset_visited(self):
         for row in self.cells:
@@ -200,7 +209,8 @@ class Maze:
         if entity.is_player:
             self.cells[sy][sx].visited = True
         entity.visible_cells = set()
-        queue = [(sy, sx, 0)]
+        queue = deque()
+        queue.append((sy, sx, 0))
         dirs  = {
             "up":    (-1,  0),
             "down":  ( 1,  0),
@@ -208,7 +218,7 @@ class Maze:
             "right": ( 0,  1),
         }
         while queue:
-            y, x, dist = queue.pop(0)
+            y, x, dist = queue.popleft()
             if (y, x) in entity.visible_cells:
                 continue
             entity.visible_cells.add((y, x))
@@ -224,15 +234,32 @@ class Maze:
     # Level progression
     # -----------------------------------------------------------------------
     async def next_level(self, player):
-        from main import main
         self._win._ui_blocked = True
         self.level += 1
         self.cells = []
         self.visible_cells = set()
+        # Yield between heavy phases so the browser frame pump can run.
+        # For a 10x10 maze this is instantaneous; for larger grids these
+        # awaits prevent a visible freeze during the level transition.
         self.create_maze()
+        await asyncio.sleep(0)
         self.player_init(player)
+        await asyncio.sleep(0)
         self.monsters_init()
-        await main(player, self._win, self)
+        await asyncio.sleep(0)
+        # Re-center camera + refresh UI in place
+        x, y = player.location.cent.x, player.location.cent.y
+        self._win.center_on_point(x, y)
+        self.update_visibility(player)
+        self._win.set_player_stats(player)
+        self._win._ui_blocked = False
+        # Release the transition guard set by entity.move()
+        self._transitioning = False
 
     async def level_up(self, player):
-        await self._win.show_level_up(player)
+        try:
+            await self._win.show_level_up(player)
+        finally:
+            # Release the guard set by entity.attack_target() so the next
+            # level-up trigger can fire.
+            player._leveling_up = False

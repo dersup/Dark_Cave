@@ -2,8 +2,6 @@ import random
 import re
 import asyncio
 
-from unicodedata import category
-
 from classes import *
 from constants import *
 
@@ -116,9 +114,10 @@ class Entity:
 			dead.give_inventory(maze.cells[dead.location.location[0]][dead.location.location[1]])
 			dead_name = dead.name
 			dy,dx = dead.location.location
-			if attacker.stats["exp"] >= 75 * attacker.level:
+			if attacker.stats["exp"] >= 75 * attacker.level and not getattr(attacker, '_leveling_up', False):
 				attacker.stats["exp"] = 0
 				attacker.level       += 1
+				attacker._leveling_up = True
 				asyncio.ensure_future(maze.level_up(attacker))
 			# Trigger death animation on dead entity's sprite (one-shot)
 			if hasattr(dead, '_sprite') and dead._sprite is not None:
@@ -368,7 +367,8 @@ class Entity:
 		if movement == "bump":
 			_done(); return "You bump into a wall."
 		if movement != "move":
-			if "continue" in movement:
+			if "continue" in movement and not getattr(maze, '_transitioning', False):
+				maze._transitioning = True
 				asyncio.ensure_future(maze.next_level(self))
 			_done(); return movement
 
@@ -390,28 +390,21 @@ class Entity:
 		from collections import deque
 		queue = deque([start])
 		came_from = {start: None}
-
 		while queue:
 			current = queue.popleft()
-
 			if current == goal:
 				break
-
 			for neighbor in get_neighbors(maze, *current):
 				if neighbor not in came_from:
 					queue.append(neighbor)
 					came_from[neighbor] = current
-
-		# reconstruct path
 		if goal not in came_from:
-			return None  # no path
-
+			return None
 		path = []
 		curr = goal
 		while curr:
 			path.append(curr)
 			curr = came_from[curr]
-
 		path.reverse()
 		return path
 

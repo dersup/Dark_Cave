@@ -71,28 +71,20 @@ Write-Host ""
 
 # Register the .wasm MIME type so the browser accepts WebAssembly files.
 # Requires admin - silently skipped if not elevated.
-try {
-    if (-not (Test-Path "HKLM:\SOFTWARE\Classes\.wasm")) {
-        New-Item -Path "HKLM:\SOFTWARE\Classes\.wasm" -Force | Out-Null
-    }
-    Set-ItemProperty -Path "HKLM:\SOFTWARE\Classes\.wasm" `
-        -Name "Content Type" -Value "application/wasm"
-    Write-Host "Registered .wasm MIME type."
-} catch {
-    # Fallback: register for current user only (no admin needed)
+
+foreach ($ext in @(".js", ".mjs",".wasm")) {
     try {
-        if (-not (Test-Path "HKCU:\SOFTWARE\Classes\.wasm")) {
-            New-Item -Path "HKCU:\SOFTWARE\Classes\.wasm" -Force | Out-Null
+        if (-not (Test-Path "HKLM:\SOFTWARE\Classes\$ext")) {
+            New-Item -Path "HKLM:\SOFTWARE\Classes\$ext" -Force | Out-Null
         }
-        Set-ItemProperty -Path "HKCU:\SOFTWARE\Classes\.wasm" `
-            -Name "Content Type" -Value "application/wasm"
-        Write-Host "Registered .wasm MIME type (current user)."
+        Set-ItemProperty -Path "HKLM:\SOFTWARE\Classes\$ext" `
+            -Name "Content Type" -Value "application/javascript"
+        Write-Host "Registered $ext MIME type."
     } catch {
-        Write-Host "(Could not register .wasm MIME type - run as admin if game won't load.)"
+        Write-Host "(Could not set $ext MIME - run as admin if JS still fails.)"
     }
 }
-
 # Let pygbag build and serve in one step - generates index.html from
 # its template and starts the dev server on all interfaces.
 Set-Location $GAME_DIR
-python -m pygbag --port $PORT --bind 0.0.0.0 --disable-sound-format-error .
+python -m pygbag --bind $LOCAL_IP --port $PORT --disable-sound-format-error $GAME_DIR

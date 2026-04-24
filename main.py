@@ -1,3 +1,6 @@
+# /// script
+# dependencies = ["pygame-ce"]
+# ///
 #The Dark Cave — Pygame edition
 #------------------------------
 #Desktop:  python main.py
@@ -6,7 +9,8 @@
 #------------------------------
 #  F5   Save game
 #  F9   Load game  (only from the main menu or game-over screen)
-#  Save file lives at  saves/savegame.json
+#  Save file lives at  saves/savegame.json  (desktop)
+#  or browser localStorage key "dark_cave_save" (web)
 
 import pygame
 import sys
@@ -19,16 +23,44 @@ from entity     import Entity, next_cell, inspect
 from generator_ import generate_weapon_loot, generate_armor_loot, \
     generate_items_loot, name_gen, generate_staff
 from save_load  import save_game, load_game, save_exists, delete_save
+from sprites import preload_sprites
+
+
+# ===============================================================================
+#  Shutdown helper — pygame.quit/sys.exit behave oddly in the browser
+# ===============================================================================
+
+def _quit_app():
+    """Clean shutdown that works on desktop and in pygbag."""
+    if sys.platform == "emscripten":
+        # In browser, SystemExit is caught by pygbag's runtime and the tab
+        # returns to idle. Calling pygame.quit() here can crash the WASM heap.
+        raise SystemExit
+    pygame.quit()
+    sys.exit()
 
 
 # ===============================================================================
 #  Character-creation screens
 # ===============================================================================
 
+_MUSIC_STARTED = False
+
 def play_music():
-    pygame.mixer.init()
-    pygame.mixer.music.load("assets/music/Iron_Descent.ogg")
-    pygame.mixer.music.play(-1)
+    """Try to start background music. Browsers require a user gesture first —
+    callers should invoke this only after a confirmed KEYDOWN."""
+    global _MUSIC_STARTED
+    if _MUSIC_STARTED:
+        return
+    try:
+        pygame.mixer.init()
+        pygame.mixer.music.load("assets/music/Iron_Descent.ogg")
+        pygame.mixer.music.play(-1)
+        _MUSIC_STARTED = True
+    except Exception:
+        # Browser hasn't authorized audio yet, or ogg unavailable.
+        # Leave _MUSIC_STARTED False so a later gesture can retry.
+        _MUSIC_STARTED = False
 
 async def _menu(win: Windows, prompt: str, options: list[str]) -> str:
     # Arrow-key / WS selection menu. Returns chosen string.
@@ -48,7 +80,7 @@ async def _menu(win: Windows, prompt: str, options: list[str]) -> str:
         await asyncio.sleep(0)
 
         for ev in pygame.event.get():
-            if ev.type == pygame.QUIT:        pygame.quit(); sys.exit()
+            if ev.type == pygame.QUIT:        _quit_app()
             if ev.type == pygame.KEYDOWN:
                 if ev.key in (pygame.K_UP, pygame.K_w):
                     cursor[0] = (cursor[0] - 1) % len(options)
@@ -82,7 +114,7 @@ async def _text_input(win: Windows, prompt: str, placeholder: str = "") -> str:
         await asyncio.sleep(0)
 
         for ev in pygame.event.get():
-            if ev.type == pygame.QUIT:        pygame.quit(); sys.exit()
+            if ev.type == pygame.QUIT:        _quit_app()
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_RETURN:
                     return buf.strip() or placeholder
@@ -131,7 +163,7 @@ async def _stat_allocation(win: Windows, player: Entity):
         left_keys = (pygame.K_LEFT, pygame.K_a)
         right_keys = (pygame.K_RIGHT, pygame.K_d)
         for ev in pygame.event.get():
-            if ev.type == pygame.QUIT: pygame.quit(); sys.exit()
+            if ev.type == pygame.QUIT: _quit_app()
             if ev.type == pygame.KEYDOWN:
                 if ev.key in up_keys:
                     cursor[0] = (cursor[0] - 1) % len(stats)
@@ -165,8 +197,13 @@ async def start_menu(win: Windows) -> tuple:
 #    Show the start screen.
 #    Returns (player, maze) where either or both may be None
 #    (None, None  → new game;  (player, maze) → loaded save).
-    play_music()
+    # NOTE: play_music() is deferred until the first user KEYDOWN below.
+    # Browsers block autoplay until a user gesture — calling it here would
+    # silently fail and leave the game muted.
     async def yes_no(message):
+        # Drain any stale events (e.g. the ENTER press that opened this dialog)
+        # so the confirmation can't auto-trigger on a replayed key.
+        pygame.event.clear()
         x = win.w // 2
         y = win.h // 2
         while True:
@@ -177,7 +214,7 @@ async def start_menu(win: Windows) -> tuple:
             await asyncio.sleep(0)
             for ev_ in pygame.event.get():
                 if ev_.type == pygame.QUIT:
-                    pygame.quit(); sys.exit()
+                    _quit_app()
                 if ev_.type == pygame.KEYDOWN:
                     if ev_.key in (pygame.K_RETURN, pygame.K_y):
                         return True
@@ -206,10 +243,12 @@ async def start_menu(win: Windows) -> tuple:
 
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
-                pygame.quit(); sys.exit()
+                _quit_app()
             if ev.type == pygame.KEYDOWN:
+                # First confirmed user gesture — safe to start audio now.
+                play_music()
                 if ev.key == pygame.K_ESCAPE:
-                    pygame.quit(); sys.exit()
+                    _quit_app()
                 elif ev.key in (pygame.K_UP, pygame.K_w):
                     cursor[0] = (cursor[0] - 1) % len(options)
                 elif ev.key in (pygame.K_DOWN, pygame.K_s):
@@ -234,7 +273,7 @@ async def start_menu(win: Windows) -> tuple:
                         return None, None
 
                     if choice == "Quit":
-                        pygame.quit(); sys.exit()
+                        _quit_app()
 
 
 # ==============================================================================
@@ -243,7 +282,6 @@ async def start_menu(win: Windows) -> tuple:
 
 async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
     # -- Window ---------------------------------------------------------
-    play_music()
     if win is None:
         win = Windows(1280, 800)
     else:
@@ -255,6 +293,8 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         win._log_timer      = []
 
     win._ui_blocked = False
+    await preload_sprites()
+    win._restart_request = None
 
     # -- Start menu (only on very first call) --------------------------------
     if player is None and maze is None:
@@ -299,6 +339,7 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
     win.center_on_point(x, y)
     maze.update_visibility(player)
     win.set_player_stats(player)
+    play_music()
 
     # -- State flags --------------------------------------------------
     busy  = False    # True while movement animation is running
@@ -330,6 +371,9 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         do_enemy_turn()
 
     def do_enemy_turn():
+        def _retry():
+            win._restart_request = ("retry", None, None)
+            win.show_game_over(player, maze, on_retry=_retry, on_quit=_quit)
         py,px = player.location.location
         nonlocal alive
         for row in maze.cells:
@@ -351,13 +395,12 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
             alive = False
             win.show_game_over(
                 player, maze,
-                on_retry=lambda: asyncio.ensure_future(main(win=win, maze=maze)),
+                on_retry=_retry,
                 on_quit=_quit
             )
 
     def _quit():
-        pygame.quit()
-        sys.exit()
+        _quit_app()
 
     def move(direction):
         nonlocal busy
@@ -403,7 +446,7 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         loaded_p, loaded_m = load_game(win)
         if loaded_p and loaded_m:
             win.log("Save loaded — restarting from save point.")
-            asyncio.ensure_future(main(player=loaded_p, win=win, maze=loaded_m))
+            win._restart_request = ("load", loaded_p, loaded_m)
         else:
             win.log("No save file found.")
 
@@ -501,6 +544,14 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
     # -- Game loop ------------------------------------------------------------
     while True:
         await asyncio.sleep(0)
+        if win._restart_request is not None:
+            kind, p, m = win._restart_request
+            win._restart_request = None
+            if kind == "retry":
+                # Fresh character + fresh maze, keep window
+                return await main(win=win)
+            if kind == "load":
+                return await main(player=p, win=win, maze=m)
         if win._ui_blocked:
             continue
         if not win.tick():

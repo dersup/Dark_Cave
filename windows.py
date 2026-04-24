@@ -84,11 +84,8 @@ class Windows:
         self.surface = self._screen
         self.clock   = pygame.time.Clock()
 
-        mono = pygame.font.match_font(
-            "cascadiacode,consolas,jetbrainsmono,dejavusansmono,monospace"
-        )
-        self.font = {sz: pygame.font.Font(mono, pt) for sz, pt in FONT_SIZE.items()}
-
+        FONT_PATH = "assets/fonts/ttf/JetBrainsMono-Regular.ttf"
+        self.font = {sz: pygame.font.Font(FONT_PATH, pt) for sz, pt in FONT_SIZE.items()}
         self._camera_x = 0.0
         self._camera_y = 0.0
 
@@ -143,11 +140,11 @@ class Windows:
     # ── Scheduling ────────────────────────────────────────────────────────────
 
     def after(self, ms, callback):
-        self._scheduled.append((time.time() + ms / 1000.0, callback))
+        self._scheduled.append((pygame.time.get_ticks() + ms, callback))
 
     def _fire_scheduled(self):
-        now  = time.time()
-        due  = [(t, cb) for t, cb in self._scheduled if t <= now]
+        now = pygame.time.get_ticks()
+        due = [(t, cb) for t, cb in self._scheduled if t <= now]
         self._scheduled = [(t, cb) for t, cb in self._scheduled if t > now]
         for _, cb in due:
             cb()
@@ -252,6 +249,11 @@ class Windows:
             await asyncio.sleep(0)
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT:
+                    # Browser-safe shutdown: SystemExit is caught cleanly by
+                    # pygbag's runtime. Calling pygame.quit() in WASM can
+                    # corrupt the heap.
+                    if sys.platform == "emscripten":
+                        raise SystemExit
                     pygame.quit(); sys.exit()
                 if ev.type == pygame.KEYDOWN:
                     if ev.key in (pygame.K_UP, pygame.K_w):
@@ -270,6 +272,9 @@ class Windows:
         score = ((player.gold // 10) + player.kills) * maze.level
         self._game_over = True
         self._go_text   = f"SCORE: {score}\n\nGAME OVER\n\nTRY AGAIN?\n  Y)   (N"
+        # Make sure nothing left _ui_blocked set — if it is, the main loop
+        # will skip redraw() and the game-over overlay will never appear.
+        self._ui_blocked = False
         self.unbind_all()
         self.bind(pygame.K_y, on_retry)
         self.bind(pygame.K_n, on_quit)
@@ -536,10 +541,10 @@ class Windows:
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
                 return False
-            if ev.type == pygame.VIDEORESIZE:
+            if ev.type == pygame.VIDEORESIZE and sys.platform != "emscripten":
                 self.w, self.h = ev.w, ev.h
-                self._screen   = pygame.display.set_mode((self.w, self.h), pygame.RESIZABLE)
-                self.surface   = self._screen
+                self._screen = pygame.display.set_mode((self.w, self.h), pygame.RESIZABLE)
+                self.surface = self._screen
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_ESCAPE:
                     return False

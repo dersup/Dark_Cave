@@ -1,0 +1,6 @@
+# Desktop runtime
+pygame-ce>=2.5
+
+# Web build toolchain (not needed at runtime, but pin it here so the venv
+# used by serve_lan.ps1 has a known-good version)
+pygbag>=0.9
