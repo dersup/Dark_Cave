@@ -27,7 +27,7 @@ class Maze:
         self.visible_cells = set()   # set of (row, col) tuples
         self.level         = 1
 
-        # Tile cache: path → pygame.Surface
+        # Tile cache: path -> pygame.Surface
         self._tile_cache: dict[str, pygame.Surface] = {}
 
     # -----------------------------------------------------------------------
@@ -94,7 +94,7 @@ class Maze:
     def _carve_passages(self, row=0, col=0):
         """Iterative back-tracker maze generation.
 
-        Previously this was recursive — for a 10x10 maze that's 100-deep on the
+        Previously this was recursive -- for a 10x10 maze that's 100-deep on the
         Python stack, which works on desktop CPython with a raised limit but is
         fragile in WASM (Emscripten's stack is tighter and a blown stack shows
         up as a silent tab freeze rather than a Python exception).
@@ -205,6 +205,8 @@ class Maze:
     # Visibility (BFS through open walls)
     # -----------------------------------------------------------------------
     def update_visibility(self, entity:Entity,radius=2):
+        if self._win.night == 1:
+            radius = 1
         sy, sx = entity.location.location
         if entity.is_player:
             self.cells[sy][sx].visited = True

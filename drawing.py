@@ -101,7 +101,7 @@ class Cell:
     # Drawing
     # -----------------------------------------------------------------------
     def _screen(self, pt):
-        """World point → screen point given camera offset."""
+        """World point -> screen point given camera offset."""
         ox, oy = self._win.camera
         return int(pt.x + ox), int(pt.y + oy)
 
@@ -117,9 +117,11 @@ class Cell:
 
     def draw(self, player, start=False):
         if start:
-            return   # generation phase — don't draw individual cells
+            return   # generation phase -- don't draw individual cells
 
         vision = self.is_visible(player)
+        if self._win.night == 1 and vision == 2:
+            return
         if vision == 0:
             return
 
@@ -131,7 +133,7 @@ class Cell:
         if self.floor_tile:
             if vision == 1:
                 self._win.surface.blit(self.floor_tile, (sx, sy))
-            else:  # visited but not visible — draw darkened
+            else:  # visited but not visible -- draw darkened
                 dark = self.floor_tile.copy()
                 dark.fill(COLOURS["gray"], special_flags=pygame.BLEND_RGBA_MULT)
                 self._win.surface.blit(dark, (sx, sy))
@@ -176,7 +178,7 @@ class Cell:
     def _draw_entity_sprite(self, pt, sprite, who):
         """
         Draw a sprite-sheet frame centred on the cell.
-        All frames are 32×32 matching the cell size.
+        All frames are 32x32 matching the cell size.
         Falls back to a coloured dot if the sprite is unavailable.
         """
         if sprite is not None:

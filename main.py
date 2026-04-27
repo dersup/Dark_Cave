@@ -1,7 +1,7 @@
 # /// script
 # dependencies = ["pygame-ce"]
 # ///
-#The Dark Cave — Pygame edition
+#The Dark Cave -- Pygame edition
 #------------------------------
 #Desktop:  python main.py
 
@@ -27,7 +27,7 @@ from sprites import preload_sprites
 
 
 # ===============================================================================
-#  Shutdown helper — pygame.quit/sys.exit behave oddly in the browser
+#  Shutdown helper -- pygame.quit/sys.exit behave oddly in the browser
 # ===============================================================================
 
 def _quit_app():
@@ -47,7 +47,7 @@ def _quit_app():
 _MUSIC_STARTED = False
 
 def play_music():
-    """Try to start background music. Browsers require a user gesture first —
+    """Try to start background music. Browsers require a user gesture first --
     callers should invoke this only after a confirmed KEYDOWN."""
     global _MUSIC_STARTED
     if _MUSIC_STARTED:
@@ -91,7 +91,7 @@ async def _menu(win: Windows, prompt: str, options: list[str]) -> str:
 
 
 async def _text_input(win: Windows, prompt: str, placeholder: str = "") -> str:
-    # Single-line text entry. Enter confirms; blank → placeholder.
+    # Single-line text entry. Enter confirms; blank -> placeholder.
     buf     = ""
     blink   = [True]
     timer   = [0]
@@ -123,6 +123,67 @@ async def _text_input(win: Windows, prompt: str, placeholder: str = "") -> str:
                 elif ev.unicode and ev.unicode.isprintable():
                     buf += ev.unicode
 
+async def options(win: Windows):
+    box_checked = -1
+    buf_w = ""
+    buf_h = ""
+    blink = [True]
+    timer = [0]
+    cursor = [0]
+    side_cursor = [0]
+    while True:
+        win.surface.fill(COLOURS["black"])
+        box = "☑" if box_checked == 1 else "☐"
+        pre = "▶ "
+        dis_w = (buf_w or str(win.maze_size[0])) + ("|" if blink[0] and side_cursor[0] else " ")
+        dis_h = (buf_h or str(win.maze_size[1])) + ("|" if blink[0] and not side_cursor[0] else " ")
+        night = f"Nightmare mode     {box}"
+        m_size = f"Maze Size          {dis_w}x{dis_h}"
+        if cursor[0] == 0:
+            night = pre + night
+        if cursor[0] == 1:
+            m_size = pre + m_size
+
+        win.txt(night, win.w // 2, win.h // 2, "lg", COLOURS["purple"], center=True)
+        win.txt(m_size, win.w//2,win.h//2 + win.font["lg"].get_height() * 2 ,"lg", COLOURS["purple"], center=True)
+
+        pygame.display.flip()
+        dt = win.clock.tick(30)
+        timer[0] += dt
+        if timer[0] >= 500:
+            blink[0] = not blink[0]
+            timer[0] = 0
+        await asyncio.sleep(0)
+        up_keys = (pygame.K_UP, pygame.K_w)
+        down_keys = (pygame.K_DOWN, pygame.K_s)
+        left_keys = (pygame.K_LEFT, pygame.K_a)
+        right_keys = (pygame.K_RIGHT, pygame.K_d)
+        for ev in pygame.event.get():
+            if ev.type == pygame.QUIT: _quit_app()
+            if ev.type == pygame.KEYDOWN:
+                if ev.key == pygame.K_ESCAPE:
+                    return
+                elif ev.key in up_keys:
+                    cursor[0] = (cursor[0] - 1) % 2
+                elif ev.key in down_keys:
+                    cursor[0] = (cursor[0] + 1) % 2
+                elif ev.key in right_keys and cursor[0] == 1:
+                    side_cursor[0] = (side_cursor[0] + 1) % 2
+                elif ev.key in left_keys and cursor[0] == 1:
+                    side_cursor[0] = (side_cursor[0] - 1) % 2
+                elif ev.key == pygame.K_RETURN:
+                    if cursor[0] == 1:
+                        win.maze_size = (int(buf_w), int(buf_h))
+                    elif cursor[0] == 0:
+                        box_checked *= -1
+                        win.night *= -1
+                elif ev.unicode and ev.unicode.isdigit():
+                    if side_cursor[0] == 1:
+                        buf_w += ev.unicode
+                    elif side_cursor[0] == 0:
+                        buf_h += ev.unicode
+
+
 
 async def _stat_allocation(win: Windows, player: Entity):
     """
@@ -136,7 +197,7 @@ async def _stat_allocation(win: Windows, player: Entity):
     total    = 25
     cursor   = [0]
     hold_timer = 0
-    HOLD_DELAY = 0.08
+    HOLD_DELAY = 0.1
 
     while True:
         remaining = total - sum(values.values())
@@ -190,25 +251,127 @@ async def _stat_allocation(win: Windows, player: Entity):
 
 
 # ===============================================================================
-#  Start menu  (new game / continue)
+#  Start menu  (hero artwork background)
 # ===============================================================================
 
+# Button geometry, expressed as fractions of the image (640x480). On any window size these scale to the live surface.
+_HERO_BUTTONS = (
+    # label,    x_frac,    y_frac,    w_frac,    h_frac
+    ("Start",   408/640,   216/480,   183/640,   50/480),
+    ("Load",    407/640,   281/480,   183/640,   50/480),
+    ("Options", 408/640,   348/480,   183/640,   50/480),
+    ("Exit",    408/640,   413/480,   183/640,   50/480),
+)
+
+# Cache: (window_w, window_h) -> scaled background Surface (or None on failure)
+_HERO_IMG_CACHE = {}
+
+
+def _hero_image(win):
+    # Load and cache the title-screen background scaled to the window.
+    key = (win.w, win.h)
+    if key in _HERO_IMG_CACHE:
+        return _HERO_IMG_CACHE[key]
+    try:
+        raw = pygame.image.load("assets/dark_cave_hero.png").convert()
+    except (pygame.error, FileNotFoundError) as e:
+        print(f"[start_menu] could not load assets/dark_cave_hero.png: {e}")
+        _HERO_IMG_CACHE[key] = None
+        return None
+    _HERO_IMG_CACHE[key] = pygame.transform.smoothscale(raw, (win.w, win.h))
+    return _HERO_IMG_CACHE[key]
+
+
+def _hero_button_rects(win):
+    # Pixel rects for each on-image button at the current window size.
+    return [
+        (label, pygame.Rect(
+            int(fx * win.w), int(fy * win.h),
+            int(fw * win.w), int(fh * win.h),
+        ))
+        for label, fx, fy, fw, fh in _HERO_BUTTONS
+    ]
+
+
 async def start_menu(win: Windows) -> tuple:
-#    Show the start screen.
-#    Returns (player, maze) where either or both may be None
-#    (None, None  → new game;  (player, maze) → loaded save).
-    # NOTE: play_music() is deferred until the first user KEYDOWN below.
-    # Browsers block autoplay until a user gesture — calling it here would
-    # silently fail and leave the game muted.
+    """
+    Show the title screen with dark_cave_hero.png as the background.
+    A glowing border highlights the currently selected button.
+
+    Returns (player, maze):
+      (None, None)   -> begin a new game
+      (player, maze) -> resume a loaded save
+
+    NOTE: play_music() is deferred until the first user KEYDOWN below.
+    Browsers block autoplay until a user gesture -- calling it here would
+    silently fail and leave the game muted.
+    """
+    hero    = _hero_image(win)
+    buttons = _hero_button_rects(win)
+    cursor  = [0]
+
+    def draw_frame(toast=None):
+        # Background: hero image, with a tasteful fallback if it failed to load
+        if hero is not None:
+            win.surface.blit(hero, (0, 0))
+        else:
+            win.surface.fill(COLOURS["dark_gray"])
+            win.txt("THE DARK CAVE", win.w // 2, win.h // 6, "lg",
+                    COLOURS["purple"], center=True)
+            for label, rect in buttons:
+                pygame.draw.rect(win.surface, (0, 0, 0), rect)
+                win.txt(label, rect.centerx, rect.centery, "md",
+                        COLOURS["red"], center=True)
+
+        # Selection highlight: glowing border around the chosen button
+        sel_rect = buttons[cursor[0]][1]
+        pad      = max(4, win.w // 200)
+        glow     = sel_rect.inflate(pad * 2, pad * 2)
+        pygame.draw.rect(win.surface, COLOURS["purple"], glow,
+                         width=max(3, win.w // 320), border_radius=4)
+
+        # Optional transient message, drawn over a translucent bar at top
+        if toast:
+            bar = pygame.Surface((win.w, 60), pygame.SRCALPHA)
+            bar.fill((0, 0, 0, 170))
+            win.surface.blit(bar, (0, 12))
+            win.txt(toast, win.w // 2, 42, "md",
+                    COLOURS["red"], center=True)
+
+    async def show_toast(message, ms=1400):
+        # Brief overlay; any keypress dismisses early
+        pygame.event.clear()
+        end = pygame.time.get_ticks() + ms
+        while pygame.time.get_ticks() < end:
+            draw_frame(toast=message)
+            pygame.display.flip()
+            win.clock.tick(30)
+            await asyncio.sleep(0)
+            done = False
+            for ev_ in pygame.event.get():
+                if ev_.type == pygame.QUIT:
+                    _quit_app()
+                if ev_.type == pygame.KEYDOWN:
+                    done = True
+                    break
+            if done:
+                break
+        pygame.event.clear()
+
     async def yes_no(message):
         # Drain any stale events (e.g. the ENTER press that opened this dialog)
         # so the confirmation can't auto-trigger on a replayed key.
         pygame.event.clear()
-        x = win.w // 2
-        y = win.h // 2
         while True:
-            win.txt(message,x, y+8, "md", COLOURS["gray"], center=True)
-            win.txt("Y/N",x,y+70,"md",COLOURS["red"],center=True)
+            draw_frame()
+            # Translucent dim layer so the prompt stays legible over the artwork
+            dim = pygame.Surface((win.w, win.h), pygame.SRCALPHA)
+            dim.fill((0, 0, 0, 180))
+            win.surface.blit(dim, (0, 0))
+            win.txt(message, win.w // 2, win.h // 2 - 20,
+                    "md", COLOURS["gray"], center=True)
+            win.txt("Y/N", win.w // 2, win.h // 2 + 50,
+                    "md", COLOURS["red"], center=True)
             win.clock.tick(30)
             pygame.display.flip()
             await asyncio.sleep(0)
@@ -220,23 +383,9 @@ async def start_menu(win: Windows) -> tuple:
                         return True
                     if ev_.key in (pygame.K_ESCAPE, pygame.K_n):
                         return False
-    has_save = save_exists()
-    options  = ["Continue", "New Game", "Quit"] if has_save \
-               else ["New Game", "Quit"]
-    cursor = [0]
 
     while True:
-        win.surface.fill(COLOURS["dark_gray"])
-        win.txt("THE DARK CAVE", win.w // 2, win.h // 5, "lg", COLOURS["purple"], center=True)
-        if has_save:
-            win.txt("A save file was found.", win.w // 2, win.h // 5 + 36, "sm", COLOURS["gray"], center=True)
-        win.txt("F9 — Load save    F5 — (in-game save)", win.w // 2, win.h * 4 // 5, "sm", COLOURS["gray"], center=True)
-
-        for i, opt in enumerate(options):
-            pre = "▶  " if i == cursor[0] else "   "
-            c   = COLOURS["purple"] if i == cursor[0] else COLOURS["orange"]
-            win.txt(pre + opt, win.w // 2 - 60, win.h // 3 + i * 40, "md", c)
-
+        draw_frame()
         pygame.display.flip()
         win.clock.tick(30)
         await asyncio.sleep(0)
@@ -245,36 +394,43 @@ async def start_menu(win: Windows) -> tuple:
             if ev.type == pygame.QUIT:
                 _quit_app()
             if ev.type == pygame.KEYDOWN:
-                # First confirmed user gesture — safe to start audio now.
+                # First confirmed user gesture -- safe to start audio now.
                 play_music()
                 if ev.key == pygame.K_ESCAPE:
                     _quit_app()
                 elif ev.key in (pygame.K_UP, pygame.K_w):
-                    cursor[0] = (cursor[0] - 1) % len(options)
+                    cursor[0] = (cursor[0] - 1) % len(buttons)
                 elif ev.key in (pygame.K_DOWN, pygame.K_s):
-                    cursor[0] = (cursor[0] + 1) % len(options)
+                    cursor[0] = (cursor[0] + 1) % len(buttons)
                 elif ev.key == pygame.K_RETURN:
-                    choice = options[cursor[0]]
-                    if choice == "Continue":
+                    label = buttons[cursor[0]][0]
+
+                    if label == "Start":
+                        if save_exists():
+                            yn = await yes_no(
+                                "Start a new game? This will overwrite your save."
+                            )
+                            if not yn:
+                                continue
+                            delete_save()
+                        return None, None
+
+                    if label == "Load":
+                        if not save_exists():
+                            await show_toast("No save file found.")
+                            continue
                         player, maze = load_game(win)
                         if player and maze:
                             return player, maze
-                        # Corrupted / missing — fall through to new game
-                        win.log("Save file could not be loaded. Starting new game.")
-                        return None, None
+                        await show_toast("Save could not be loaded.")
+                        continue
 
-                    if choice == "New Game":
-                        if has_save:
-                            yn = await yes_no("are you sure you want to start a new game?, this will overwrite your save.")
-                            if yn:
-                                delete_save()
-                            else:
-                                continue
-                        return None, None
+                    if label == "Options":
+                        await options(win)
+                        continue
 
-                    if choice == "Quit":
+                    if label == "Exit":
                         _quit_app()
-
 
 # ==============================================================================
 #  Main game
@@ -325,7 +481,7 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
 
     # -- Maze (skip rebuild when loaded from save) ----------------------------
     if maze is None:
-        maze = Maze(10, 10, win)
+        maze = Maze(win.maze_size[1],win.maze_size[0] , win)
         maze.create_maze()
         maze.player_init(player)
         maze.monsters_init()

@@ -124,7 +124,6 @@ ENEMIES = {
             "poison": 1.00, "physical": 0.25,
         }
     },
-    # ── New mobs ──────────────────────────────────────────────────────────────
     "zombie": {"stats":{
         "health": 40, "mana":0, "attack": 5, "defence": 4, "luck": 2,
         "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 18, "gold": 2
@@ -320,7 +319,7 @@ MOB_WEAPON_PREFERENCES = {
         "long sword": 35,
         "axe": 25,
     },
-    # ── New mobs ──────────────────────────────────────────────────────────────
+    # -- New mobs --------------------------------------------------------------
     "zombie": {
         "club": 50,
         "axe": 30,
@@ -414,7 +413,7 @@ MOB_ARMOR_PREFERENCES = {
         "chain shirt": 35,
         "scale mail": 25,
     },
-    # ── New mobs ──────────────────────────────────────────────────────────────
+    # -- New mobs --------------------------------------------------------------
     "zombie": {
         "cloth": 60,
         "leather jerkin": 30,
@@ -502,7 +501,7 @@ MOB_ITEM_PREFERENCES = {
         "Bomb": 20,
         "Healing Potion": 80
     },
-    # ── New mobs ──────────────────────────────────────────────────────────────
+    # -- New mobs --------------------------------------------------------------
     "zombie": {
         "Bomb": 15,
         "Healing Potion": 85,
@@ -729,7 +728,7 @@ QUALITY_WEIGHT = {
             "masterwork": 50
         }
     },
-    # ── New mobs ──────────────────────────────────────────────────────────────
+    # -- New mobs --------------------------------------------------------------
     "zombie": {
         "items": {"diluted": 50, "low": 40, "": 10},
         "weapon": {"broken": 30, "crude": 40, "rusted": 20, "": 10},
@@ -851,47 +850,47 @@ BASE_ARMOR = {
 }
 
 BASE_SPELLS = {
-    # ── Fire ─────────────────────────────────────────────────────────────────
+    # -- Fire -----------------------------------------------------------------
     "fireball": Magic("Fireball", [Elements("fire", 30)], "A burst of flame that scorches on impact.", cost=15,
                       distance=5),
     "flame lance": Magic("Flame Lance", [Elements("fire", 50)], "A piercing spear of concentrated fire.", cost=25,
                          distance=7),
-    # ── Ice ──────────────────────────────────────────────────────────────────
+    # -- Ice ------------------------------------------------------------------
     "ice shard": Magic("Ice Shard", [Elements("ice", 25)], "A razor-sharp shard of conjured ice.", cost=12, distance=5),
     "ice spear": Magic("Ice Spear", [Elements("ice", 45)], "A razor-sharp length of conjured ice.", cost=28,
                        distance=3),
-    # ── Lightning ────────────────────────────────────────────────────────────
+    # -- Lightning ------------------------------------------------------------
     "lightning bolt": Magic("Lightning Bolt", [Elements("lightning", 40)], "A crackling bolt of raw electricity.",
                             cost=20, distance=6),
-    # ── Water ────────────────────────────────────────────────────────────────
+    # -- Water ----------------------------------------------------------------
     "tidal wave": Magic("Tidal Wave", [Elements("water", 35)], "A rushing wall of water that bowls enemies over.",
                         cost=18, distance=4),
-    # ── Earth ────────────────────────────────────────────────────────────────
+    # -- Earth ----------------------------------------------------------------
     "stone spike": Magic("Stone Spike", [Elements("earth", 32)], "Jagged spires of rock erupt beneath the target.",
                          cost=16, distance=4),
-    # ── Wind ─────────────────────────────────────────────────────────────────
+    # -- Wind -----------------------------------------------------------------
     "gust blade": Magic("Gust Blade", [Elements("wind", 22)], "A razor-edged current of compressed air.", cost=11,
                         distance=5),
-    # ── Light ────────────────────────────────────────────────────────────────
+    # -- Light ----------------------------------------------------------------
     "holy light": Magic("Holy Light", [Elements("light", 45)], "A blinding beam of radiant divine energy.", cost=22,
                         distance=8),
     "smite": Magic("Smite", [Elements("light", 30)], "A concentrated strike of sacred power.", cost=15, distance=5),
-    # ── Dark ─────────────────────────────────────────────────────────────────
+    # -- Dark -----------------------------------------------------------------
     "dark pulse": Magic("Dark Pulse", [Elements("dark", 35)], "A wave of shadowy energy that drains the soul.", cost=18,
                         distance=4),
     "void rift": Magic("Void Rift", [Elements("dark", 55)], "Tears a wound in reality, unleashing consuming darkness.",
                        cost=32, distance=6),
-    # ── Poison ───────────────────────────────────────────────────────────────
+    # -- Poison ---------------------------------------------------------------
     "poison cloud": Magic("Poison Cloud", [Elements("poison", 20)], "A lingering toxic cloud that chokes and corrodes.",
                           cost=10, distance=3),
     "venom strike": Magic("Venom Strike", [Elements("poison", 30)], "A concentrated burst of lethal venom.", cost=16,
                           distance=5),
-    # ── Physical ─────────────────────────────────────────────────────────────
+    # -- Physical -------------------------------------------------------------
     "force wave": Magic("Force Wave", [Elements("physical", 28)], "A concussive shockwave of pure kinetic force.",
                         cost=14, distance=3),
     "arcane barrage": Magic("Arcane Barrage", [Elements("physical", 18)], "Rapid-fire bolts of raw magical force.",
                             cost=9, distance=5),
-    # ── Multi-element ────────────────────────────────────────────────────────
+    # -- Multi-element --------------------------------------------------------
     "hellfire": Magic("Hellfire", [Elements("fire", 25), Elements("dark", 20)],
                       "Infernal flames mingled with corrupting shadow.", cost=28, distance=5),
     "steam burst": Magic("Steam Burst", [Elements("fire", 18), Elements("water", 18)],
@@ -906,16 +905,16 @@ BASE_SPELLS = {
                           "Sacred flames of righteous fury smite the wicked.", cost=30, distance=6),
     "frozen earth": Magic("Frozen Earth", [Elements("ice", 20), Elements("earth", 20)],
                           "Permafrost erupts from the ground, trapping foes.", cost=22, distance=3),
-    # ── Healing ──────────────────────────────────────────────────────────────
+    # -- Healing --------------------------------------------------------------
     "mend": Magic("Mend", [Elements("healing", 25)], "A gentle pulse of restorative energy.", cost=12, distance=1),
     "greater heal": Magic("Greater Heal", [Elements("healing", 50)], "A powerful wave of healing light.", cost=28,
                           distance=1),
 }
 
 BASE_STAFFS = {
-    # ── Starter ───────────────────────────────────────────────────────────────
+    # -- Starter ---------------------------------------------------------------
     "apprentice staff":  Staff("Apprentice Staff",   gold= 80,  attack= 5,  elements=[Elements("physical",   5)],  description="A plain wooden staff. Enchantments are weak but serviceable."),
-    # ── Elemental ─────────────────────────────────────────────────────────────
+    # -- Elemental -------------------------------------------------------------
     "fire staff":        Staff("Fire Staff",          gold=180,  attack= 8,  elements=[Elements("fire",      14)],  description="Tipped with a smouldering ruby. Warm to the touch even without a spell."),
     "frost staff":       Staff("Frost Staff",         gold=190,  attack= 8,  elements=[Elements("ice",       14)],  description="A pale-blue staff that frosts the air around it."),
     "storm staff":       Staff("Storm Staff",         gold=200,  attack=10,  elements=[Elements("lightning", 15)],  description="Crackles with electricity. Static clings to the wielder's hair."),
@@ -923,7 +922,7 @@ BASE_STAFFS = {
     "wind staff":        Staff("Wind Staff",          gold=170,  attack= 9,  elements=[Elements("wind",      13)],  description="Hollow-cored and light; it whistles faintly when swung."),
     "tide staff":        Staff("Tide Staff",          gold=180,  attack= 8,  elements=[Elements("water",     14)],  description="A staff of sea-glass and driftwood. Smells faintly of the ocean."),
     "venom staff":       Staff("Venom Staff",         gold=160,  attack= 7,  elements=[Elements("poison",    12)],  description="Stained green along the grain; the wood itself has been toxified."),
-    # ── Prestige ──────────────────────────────────────────────────────────────
+    # -- Prestige --------------------------------------------------------------
     "shadow staff":      Staff("Shadow Staff",        gold=250,  attack= 8,  elements=[Elements("dark",      20)],  description="Wreathed in shifting shadow. Light faintly dims near it."),
     "holy staff":        Staff("Holy Staff",          gold=300,  attack=12,  elements=[Elements("light",     25)],  description="Glows with divine light. The warmth is comforting to the righteous."),
     "plague staff":      Staff("Plague Staff",        gold=270,  attack= 9,  elements=[Elements("poison",    18), Elements("dark",  10)],
@@ -937,7 +936,7 @@ BASE_STAFFS = {
     "arcane staff":      Staff("Arcane Staff",        gold=400,  attack=14,  elements=[Elements("physical",  30)],  description="Brimming with raw unaligned magic. Every element bends to its wielder."),
 }
 
-# Element → list of spell keys that match it (including multi-element spells)
+# Element -> list of spell keys that match it (including multi-element spells)
 STAFF_ELEMENT_SPELL_AFFINITIES = {
     "fire":      ["fireball", "flame lance", "hellfire", "steam burst", "divine wrath"],
     "ice":       ["ice shard", "ice spear", "frostbolt", "frozen earth"],
@@ -1014,7 +1013,7 @@ ELEMENT_RESIST = {
 ITEM_MODIFIERS = {
     "weapons": {
         "single": {
-    # ── WEAPONS ──────────────────────────────────────────────────────────────
+    # -- WEAPONS --------------------------------------------------------------
             "of_fire": {
                 "type": "weapon",
                 "damage_bonus": {"fire": 0.25},
@@ -1090,7 +1089,7 @@ ITEM_MODIFIERS = {
             },
         },
 
-        # ── ARMOR ─────────────────────────────────────────────────────────────────
+        # -- ARMOR -----------------------------------------------------------------
     },
     "armour":{
         "single":{

@@ -109,8 +109,10 @@ class Windows:
         self._scheduled: list = []
         self.animating_cells: list = []
         self._ui_blocked = False
+        self.maze_size = (10,10)
+        self.night = -1
 
-    # ── Shim properties (entity.py uses win.inventory_show etc.) ─────────────
+    # -- Shim properties (entity.py uses win.inventory_show etc.) -------------
 
     @property
     def inventory_show(self):            return self._panels["inventory"].visible
@@ -122,7 +124,7 @@ class Windows:
     @spell_list_show.setter
     def spell_list_show(self, v):        self._panels["spell_list"].visible = v
 
-    # ── Camera ────────────────────────────────────────────────────────────────
+    # -- Camera ----------------------------------------------------------------
 
     @property
     def camera(self): return self._camera_x, self._camera_y
@@ -131,13 +133,13 @@ class Windows:
         self._camera_x = self.w / 2 - x
         self._camera_y = self.h / 2 - y
 
-    # ── Key bindings ──────────────────────────────────────────────────────────
+    # -- Key bindings ----------------------------------------------------------
 
     def bind(self, key, callback):    self._keys[key] = callback
     def unbind(self, key):            self._keys.pop(key, None)
     def unbind_all(self):             self._keys.clear()
 
-    # ── Scheduling ────────────────────────────────────────────────────────────
+    # -- Scheduling ------------------------------------------------------------
 
     def after(self, ms, callback):
         self._scheduled.append((pygame.time.get_ticks() + ms, callback))
@@ -149,7 +151,7 @@ class Windows:
         for _, cb in due:
             cb()
 
-    # ── Combat log ────────────────────────────────────────────────────────────
+    # -- Combat log ------------------------------------------------------------
 
     def log(self, message: str):
         if not message:
@@ -172,7 +174,7 @@ class Windows:
 
     # -- Info Text -------------------------------------------------------------
 
-    # ── Panel population ──────────────────────────────────────────────────────
+    # -- Panel population ------------------------------------------------------
 
     def _build_lines(self, text: str, headers: set) -> list:
         """Used by spell_list (no item objects needed there)."""
@@ -202,7 +204,7 @@ class Windows:
             self._build_lines("\n".join(list(player.get_spells().keys())), {"SPELLS"})
         )
 
-    # ── Panel cursor / selection ──────────────────────────────────────────────
+    # -- Panel cursor / selection ----------------------------------------------
 
     def panel_cursor_move(self, panel_key: str, delta: int):
         text = self._panels[panel_key].move_cursor(delta)
@@ -218,7 +220,7 @@ class Windows:
     def inv_selected_name(self):        return self.panel_selected_name("inventory")
     def spell_selected_name(self):      return self.panel_selected_name("spell_list")
 
-    # ── Level-up screen (blocking sub-loop) ───────────────────────────────────
+    # -- Level-up screen (blocking sub-loop) -----------------------------------
 
     async def show_level_up(self, player):
         self._ui_blocked = True
@@ -266,20 +268,20 @@ class Windows:
             render()
         self._ui_blocked = False
 
-    # ── Game-over screen ──────────────────────────────────────────────────────
+    # -- Game-over screen ------------------------------------------------------
 
     def show_game_over(self, player, maze, on_retry, on_quit):
         score = ((player.gold // 10) + player.kills) * maze.level
         self._game_over = True
         self._go_text   = f"SCORE: {score}\n\nGAME OVER\n\nTRY AGAIN?\n  Y)   (N"
-        # Make sure nothing left _ui_blocked set — if it is, the main loop
+        # Make sure nothing left _ui_blocked set -- if it is, the main loop
         # will skip redraw() and the game-over overlay will never appear.
         self._ui_blocked = False
         self.unbind_all()
         self.bind(pygame.K_y, on_retry)
         self.bind(pygame.K_n, on_quit)
 
-    # ── Render pass ───────────────────────────────────────────────────────────
+    # -- Render pass -----------------------------------------------------------
 
     def render(self):
         self._draw_hud()
@@ -326,7 +328,7 @@ class Windows:
         return lines or [""]
 
     def _build_item_rows(self, item, max_w: int) -> list:
-        """Build display rows directly from an item object — no repr parsing."""
+        """Build display rows directly from an item object -- no repr parsing."""
         from classes import Weapon, Armour, Healing, Magic, Staff, Throwing
 
         rows = []
@@ -345,22 +347,22 @@ class Windows:
         def nonzero_dict(d):
             return [(k, v) for k, v in d.items() if v not in (0, 0.0, "0", "0.0", "0.00")]
 
-        # ── Value ─────────────────────────────────────────────────────────────
+        # -- Value -------------------------------------------------------------
         if hasattr(item, "value") and item.value:
             kv("Value", f"{item.value} G", GOLD)
 
-        # ── Attack ────────────────────────────────────────────────────────────
+        # -- Attack ------------------------------------------------------------
         if isinstance(item, Weapon) and item.attack != -1:
             kv("Attack", str(item.attack), HP_COL)
 
-        # ── Throw / cast range ────────────────────────────────────────────────
+        # -- Throw / cast range ------------------------------------------------
         if isinstance(item, Throwing):
             kv("Range", str(item.distance))
         elif isinstance(item, Magic):
             kv("MP Cost", str(item.cost), MP_COL)
             kv("Cast Range", str(item.distance))
 
-        # ── Elements / damage types ───────────────────────────────────────────
+        # -- Elements / damage types -------------------------------------------
         if isinstance(item, Magic):
             elements = item.elements
         elif isinstance(item, Weapon):
@@ -382,21 +384,21 @@ class Windows:
             for e in elem_list:
                 kv("  " + e.type.capitalize(), str(e.damage), HIGHLIGHT_FG)
 
-        # ── Healing ───────────────────────────────────────────────────────────
+        # -- Healing -----------------------------------------------------------
         if isinstance(item, Healing) and item.healing:
             divider()
             rows.append({"kind": "text", "text": "Heals", "col": GOLD})
             for e in item.healing:
                 kv("  " + e.type.capitalize(), "+" + str(e.damage), (80, 210, 100))
 
-        # ── Spells on staff ───────────────────────────────────────────────────
+        # -- Spells on staff ---------------------------------------------------
         if isinstance(item, Staff) and item.spells:
             divider()
             rows.append({"kind": "text", "text": "Spells", "col": GOLD})
             for spell_name in item.spells:
                 rows.append({"kind": "text", "text": "  " + spell_name, "col": MP_COL})
 
-        # ── Stat bonuses ──────────────────────────────────────────────────────
+        # -- Stat bonuses ------------------------------------------------------
         if hasattr(item, "stat_bonuses"):
             nz = nonzero_dict(item.stat_bonuses)
             if nz:
@@ -409,7 +411,7 @@ class Windows:
                     prefix = "+" if v >= 0 else ""
                     kv("  " + label, f"{prefix}{v}", col)
 
-        # ── Resistances ───────────────────────────────────────────────────────
+        # -- Resistances -------------------------------------------------------
         if isinstance(item, Armour):
             nz = nonzero_dict(item.resistances)
             if nz:
@@ -418,7 +420,7 @@ class Windows:
                 for k, v in nz:
                     kv("  " + k.capitalize(), f"{v:.0%}", HIGHLIGHT_FG)
 
-        # ── Description ───────────────────────────────────────────────────────
+        # -- Description -------------------------------------------------------
         desc = getattr(item, "_description", None)
         if desc is None:
             desc = getattr(item, "description", "") or ""
@@ -437,7 +439,7 @@ class Windows:
 
 
     def _draw_panel(self, panel: Panel):
-        """Single method draws any panel — inventory and spell list both use this."""
+        """Single method draws any panel -- inventory and spell list both use this."""
         pw = 300
         ph = min(self.h - 120, len(panel.lines) * 20 + 80)
         px = (self.w - pw) // 2
@@ -532,7 +534,7 @@ class Windows:
             self.txt(line, self.w // 2, y, sz, c, center=True)
             y += FONT_SIZE[sz] + 10
 
-    # ── Frame loop ────────────────────────────────────────────────────────────
+    # -- Frame loop ------------------------------------------------------------
 
     def tick(self):
         self._fire_scheduled()

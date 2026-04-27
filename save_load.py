@@ -1,5 +1,5 @@
 """
-save_load.py  —  Save / Load system for The Dark Cave
+save_load.py  --  Save / Load system for The Dark Cave
 ======================================================
 Save location is platform-dependent (see save_adapter.py):
   - Desktop:  saves/savegame.json

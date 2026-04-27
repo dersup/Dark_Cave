@@ -1,24 +1,24 @@
 """
-sprites.py — Sprite-sheet animation system.
+sprites.py -- Sprite-sheet animation system.
 
 Frame layout (per every `_AnimationInfo.txt` in the asset pack):
-  • Every frame is 32×32 px.
-  • Rows encode facing direction:
+  * Every frame is 32x32 px.
+  * Rows encode facing direction:
       - Row 0 (1st row, odd):  right-facing
       - Row 1 (2nd row, even): left-facing
       - Row 2 (3rd row, odd):  right-facing (variant pose)
       - Row 3 (4th row, even): left-facing  (variant pose)
-  • Columns encode animation frames (played left-to-right).
+  * Columns encode animation frames (played left-to-right).
 
-Sheets with only 1 row (height == 32) have no left-facing variant —
+Sheets with only 1 row (height == 32) have no left-facing variant --
 those frames are flipped horizontally when the entity faces left.
 
 Each AnimSprite:
-  • loads the correct PNG strip from assets/
-  • knows frame counts & durations per animation state
-  • advances frames based on wall-clock time
-  • exposes .get_frame() -> pygame.Surface (32×32)
-  • responds to .set_facing("left"|"right"|"up"|"down")
+  * loads the correct PNG strip from assets/
+  * knows frame counts & durations per animation state
+  * advances frames based on wall-clock time
+  * exposes .get_frame() -> pygame.Surface (32x32)
+  * responds to .set_facing("left"|"right"|"up"|"down")
 
 Supported states:  idle | walk | attack | charged_attack | dmg | die | jump | fly
 Missing states fall back gracefully to "idle".
@@ -41,16 +41,16 @@ import pygame
 FRAME_FAST_MS = 100   # attack / jump / die / dmg
 FRAME_SLOW_MS = 200   # idle / walk
 
-FRAME_SIZE = 32       # native frame size per AnimationInfo.txt — all frames are 32×32
+FRAME_SIZE = 32       # native frame size per AnimationInfo.txt -- all frames are 32x32
 CELL_SIZE  = 32       # target render size (matches Maze.CELL_SIZE)
 
 # ---------------------------------------------------------------------------
 # Sprite-sheet database
 #
 # Tuple shape: (path, n_frames, ms)
-#   path     — PNG sheet relative to project root
-#   n_frames — number of animation frames (columns) at 32 px each
-#   ms       — duration per frame (100 or 200, from each _AnimationInfo.txt)
+#   path     -- PNG sheet relative to project root
+#   n_frames -- number of animation frames (columns) at 32 px each
+#   ms       -- duration per frame (100 or 200, from each _AnimationInfo.txt)
 #
 # Row layout within a sheet (asset convention):
 #   row 0 = right-facing
@@ -106,7 +106,7 @@ def _slime_sheets(base_dir: str, prefix: str,
     }
 
 
-# ── Asset base paths ─────────────────────────────────────────────────────────
+# -- Asset base paths ---------------------------------------------------------
 _BH = "assets/Base_Humanoids"
 _MO = "assets/Monsters"
 _UN = "assets/Undead"
@@ -114,35 +114,35 @@ _SL = "assets/Slimes"
 
 MOB_SPRITE_DB: dict[str, dict[str, tuple]] = {
 
-    # ── Player (Base Human) ───────────────────────────────────────────────────
+    # -- Player (Base Human) ---------------------------------------------------
     "player": _humanoid_sheets(f"{_BH}/Human/Base_Human", "Human",
                                die_key="SpinDie", die_frames=12),
 
-    # ── Goblin ────────────────────────────────────────────────────────────────
+    # -- Goblin ----------------------------------------------------------------
     "goblin": _humanoid_sheets(f"{_BH}/Goblin", "Goblin",
                                attack_key="Attack", die_key="SpinDie", die_frames=12),
 
-    # ── Orc (Base) ────────────────────────────────────────────────────────────
+    # -- Orc (Base) ------------------------------------------------------------
     "orc": _humanoid_sheets(f"{_BH}/Orc/Base_Orc", "Orc",
                             attack_key="BaseAttack", die_key="Die", die_frames=12),
 
-    # ── Wild Orc ──────────────────────────────────────────────────────────────
+    # -- Wild Orc --------------------------------------------------------------
     "wild orc": _humanoid_sheets(f"{_BH}/Orc/Wild Orc", "WildOrc",
                                  attack_key="Attack", die_key="Die", die_frames=12),
 
-    # ── Vampire (Base Elf sheets, as specified) ──────────────────────────────
+    # -- Vampire (Base Elf sheets, as specified) ------------------------------
     "vampire": _humanoid_sheets(f"{_BH}/Elf", "Elf",
                                 attack_key="Attack", die_key="SpinDie", die_frames=12),
 
-    # ── Dwarf ─────────────────────────────────────────────────────────────────
+    # -- Dwarf -----------------------------------------------------------------
     "dwarf": _humanoid_sheets(f"{_BH}/Dwarf/Base_Dwarf", "Dwarf",
                               die_key="SpinDie", die_frames=11),
 
-    # ── Halfling ──────────────────────────────────────────────────────────────
+    # -- Halfling --------------------------------------------------------------
     "halfling": _humanoid_sheets(f"{_BH}/Halfling", "Halfling",
                                  die_key="SpinDie", die_frames=12),
 
-    # ── Skeleton ─────────────────────────────────────────────────────────────
+    # -- Skeleton -------------------------------------------------------------
     "skeleton": {
         "idle":   (f"{_UN}/Skeleton/SkeletonIdle.png",   5,  FRAME_SLOW_MS),
         "walk":   (f"{_UN}/Skeleton/SkeletonWalk.png",   2,  FRAME_SLOW_MS),
@@ -151,7 +151,7 @@ MOB_SPRITE_DB: dict[str, dict[str, tuple]] = {
         "die":    (f"{_UN}/Skeleton/SkeletonDie.png",    9,  FRAME_FAST_MS),
     },
 
-    # ── Zombie ───────────────────────────────────────────────────────────────
+    # -- Zombie ---------------------------------------------------------------
     "zombie": {
         "idle":   (f"{_UN}/Zombie/ZombieIdle.png",   19, FRAME_SLOW_MS),
         "walk":   (f"{_UN}/Zombie/ZombieWalk.png",    4, FRAME_SLOW_MS),
@@ -160,7 +160,7 @@ MOB_SPRITE_DB: dict[str, dict[str, tuple]] = {
         "die":    (f"{_UN}/Zombie/ZombieDie.png",    11, FRAME_FAST_MS),
     },
 
-    # ── Wraith (Wildfire ghost spirit) ──────────────────────────────────────
+    # -- Wraith (Wildfire ghost spirit) --------------------------------------
     "wraith": {
         "idle":   (f"{_UN}/Wildfire/WildfireIdle.png", 4, FRAME_SLOW_MS),
         "walk":   (f"{_UN}/Wildfire/WildfireFly.png",  4, FRAME_SLOW_MS),
@@ -169,37 +169,37 @@ MOB_SPRITE_DB: dict[str, dict[str, tuple]] = {
         "die":    (f"{_UN}/Wildfire/WildfireDie.png", 12, FRAME_FAST_MS),
     },
 
-    # ── Troll ────────────────────────────────────────────────────────────────
+    # -- Troll ----------------------------------------------------------------
     "troll": _monster_sheets(f"{_MO}/Troll", "Troll",
                              idle_frames=16, walk_frames=6,
                              attack_frames=4, dmg_frames=4,
                              die_frames=14, jump_frames=6),
 
-    # ── Cyclops ──────────────────────────────────────────────────────────────
+    # -- Cyclops --------------------------------------------------------------
     "cyclops": _monster_sheets(f"{_MO}/Cyclop", "Cyclop",
                                idle_frames=16, walk_frames=6,
                                attack_frames=4, dmg_frames=4,
                                die_frames=14, jump_frames=6),
 
-    # ── Minotaur ─────────────────────────────────────────────────────────────
+    # -- Minotaur -------------------------------------------------------------
     "minotaur": _monster_sheets(f"{_MO}/Minotaur", "Minotaur",
                                 idle_frames=16, walk_frames=6,
                                 attack_frames=8, dmg_frames=4,
                                 die_frames=16, jump_frames=6),
 
-    # ── Centaur ──────────────────────────────────────────────────────────────
+    # -- Centaur --------------------------------------------------------------
     "centaur": _monster_sheets(f"{_MO}/Centaur", "Centaur",
                                idle_frames=16, walk_frames=4,
                                attack_frames=4, dmg_frames=4,
                                die_frames=12, jump_frames=4),
 
-    # ── Yeti ─────────────────────────────────────────────────────────────────
+    # -- Yeti -----------------------------------------------------------------
     "yeti": _monster_sheets(f"{_MO}/Yeti", "Yeti",
                             idle_frames=16, walk_frames=6,
                             attack_frames=4, dmg_frames=4,
                             die_frames=14, jump_frames=6),
 
-    # ── Pumpkin Horror ───────────────────────────────────────────────────────
+    # -- Pumpkin Horror -------------------------------------------------------
     "pumpkin horror": {
         "idle":   (f"{_MO}/Pumpkin_Horror/PumpkinHorrorBaseIdleActivation.png", 5,  FRAME_SLOW_MS),
         "walk":   (f"{_MO}/Pumpkin_Horror/PumpkinHorrorBaseWalk.png",           2,  FRAME_SLOW_MS),
@@ -208,11 +208,11 @@ MOB_SPRITE_DB: dict[str, dict[str, tuple]] = {
         "die":    (f"{_MO}/Pumpkin_Horror/PumpkinHorrorBaseDie.png",           12,  FRAME_FAST_MS),
     },
 
-    # ── Trasgo (Dark Mage / Imp-like caster) ─────────────────────────────────
+    # -- Trasgo (Dark Mage / Imp-like caster) ---------------------------------
     "dark mage": _humanoid_sheets(f"{_MO}/Trasgo", "Trasgo",
                                   attack_key="Attack", die_key="SpinDie", die_frames=11),
 
-    # ── Slimes ───────────────────────────────────────────────────────────────
+    # -- Slimes ---------------------------------------------------------------
     "green slime": _slime_sheets(f"{_SL}/Green_Slime", "SlimeGreen",
                                  idle_frames=8, jump_frames=4, dmg_frames=4, die_frames=9),
 
@@ -227,7 +227,7 @@ MOB_SPRITE_DB: dict[str, dict[str, tuple]] = {
 }
 
 # ---------------------------------------------------------------------------
-# Facing → row index mapping
+# Facing -> row index mapping
 #
 # Sheets may have 1, 2, 3, or 4 rows.
 # Per asset convention:
@@ -291,7 +291,7 @@ class AnimSprite:
         self._one_shot  = False
         self._done      = False
 
-    # ── State management ─────────────────────────────────────────────────────
+    # -- State management -----------------------------------------------------
 
     def set_state(self, state: str, one_shot: bool = False):
         """
@@ -317,7 +317,7 @@ class AnimSprite:
     def is_done(self) -> bool:
         return self._done
 
-    # ── Frame retrieval ──────────────────────────────────────────────────────
+    # -- Frame retrieval ------------------------------------------------------
 
     def get_frame(self) -> Optional[pygame.Surface]:
         """Return current frame surface, advancing the animation timer."""
@@ -348,11 +348,11 @@ class AnimSprite:
         idx = min(self._frame_idx, len(frames) - 1)
         return frames[idx]
 
-    # ── Internal helpers ─────────────────────────────────────────────────────
+    # -- Internal helpers -----------------------------------------------------
 
     def _get_frames(self, state: str, facing: str) -> list[pygame.Surface]:
         """
-        Extract 32×32 frames from the current sheet, one row for the chosen facing.
+        Extract 32x32 frames from the current sheet, one row for the chosen facing.
 
         Row selection per asset convention:
           row 0 = right-facing

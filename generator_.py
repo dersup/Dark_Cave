@@ -167,7 +167,7 @@ def generate_staff(mob_type, staff_name=""):
                         damages.append(new_element)
         name = f"{rarity} {name}"
 
-    # ── Quality modifier ──────────────────────────────────────────────────────
+    # -- Quality modifier ------------------------------------------------------
     if quality_name:
         name = f"{quality_name} {name}"
         quality = WEAPON_QUALITIES[quality_name]
@@ -176,7 +176,7 @@ def generate_staff(mob_type, staff_name=""):
         attack += quality["attack_mod"]
         gold *= quality["gold_mod"]
 
-    # ── Spell assignment ──────────────────────────────────────────────────────
+    # -- Spell assignment ------------------------------------------------------
     # Determine core element(s) of the staff for affinity weighting
     core_elements = {ele.type for ele in damages}
 
@@ -208,7 +208,7 @@ def generate_staff(mob_type, staff_name=""):
         chosen_spells.update({picked_key:copy.deepcopy(BASE_SPELLS[picked_key])})
         del remaining_pool[picked_key]          # no duplicates
 
-    # ── Assemble final Staff object ───────────────────────────────────────────
+    # -- Assemble final Staff object -------------------------------------------
     staff = Staff(name, gold, attack, damages, spells=chosen_spells, description=description)
 
     if stat_bonus:

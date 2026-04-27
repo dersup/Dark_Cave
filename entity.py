@@ -34,7 +34,7 @@ def get_neighbors(maze, row, col):
 	}
 
 	for d, (dr, dc, wall) in directions.items():
-		if not getattr(cell, wall):  # no wall → can move
+		if not getattr(cell, wall):  # no wall -> can move
 			nr, nc = row + dr, col + dc
 			if 0 <= nr < maze.num_rows and 0 <= nc < maze.num_cols:
 				neighbors.append((nr, nc))
@@ -73,7 +73,7 @@ class Entity:
 		self.use_item(self.inventory.items["Armors"][0].name)
 		self.use_item(self.inventory.items["Weapons"][0].name)
 
-	# ── Combat ────────────────────────────────────────────────────────────────
+	# -- Combat ----------------------------------------------------------------
 
 	def cast_spell(self, spell, maze):
 		if not isinstance(self.weapon, Staff):
@@ -140,7 +140,7 @@ class Entity:
 			roll += int(self.stats["attack"])
 			attack_total = roll + self.weapon.attack
 			e_defence = int(enemy.stats["defence"])
-		dam_taken = enemy.take_damage(weapon_.elements, extra_dam=self.stats["attack"])
+		dam_taken = enemy.take_damage(weapon_.elements)
 		if isinstance(weapon_, Throwing) and "bomb" in weapon_.name:
 			dam_taken = enemy.take_damage(weapon_.elements) if roll > 10 \
 				else enemy.take_damage(weapon_.elements, 0.5)
@@ -171,7 +171,7 @@ class Entity:
 		staff = self.get_equipped_staff()
 		return staff.spells if staff else {}
 
-	# ── Inventory ─────────────────────────────────────────────────────────────
+	# -- Inventory -------------------------------------------------------------
 
 	def _category(self, item_):
 		if isinstance(item_, Weapon): return "Weapons"
@@ -224,7 +224,7 @@ class Entity:
 		target.gold = 0
 		return (messages or ["no items to be found"]), gold_msg
 
-	# ── Panels (inventory / spell_list) ───────────────────────────────────────
+	# -- Panels (inventory / spell_list) ---------------------------------------
 
 	def show_panel(self, win, panel: str):
 		"""Toggle a named panel and populate it. panel: 'inventory' | 'spell_list'"""
@@ -241,7 +241,7 @@ class Entity:
 	def show_inventory(self, win):  self.show_panel(win, "inventory")
 	def show_spell_list(self, win): self.show_panel(win, "spell_list")
 
-	# ── Item usage ────────────────────────────────────────────────────────────
+	# -- Item usage ------------------------------------------------------------
 
 	def use_item(self, item_name, maze=None):
 		item_name = re.sub(r'^\d+x\s*', '', item_name).strip()
@@ -311,7 +311,7 @@ class Entity:
 				self.armor = None
 				return
 
-	# ── Throw / projectile ────────────────────────────────────────────────────
+	# -- Throw / projectile ----------------------------------------------------
 
 	def throw(self, item, maze):
 		row, col = self.location.location
@@ -351,7 +351,7 @@ class Entity:
 				row, col = next_cell(row, col, self.facing)
 		return f"{item.name} dissipates" if isinstance(item, Magic) else f"{item.name} hits the ground"
 
-	# ── Movement ──────────────────────────────────────────────────────────────
+	# -- Movement --------------------------------------------------------------
 
 	def move(self, direction, maze, on_complete=None):
 		self.mana = min(self.mana+2 ,self.max_mana)
@@ -385,7 +385,7 @@ class Entity:
 			self.location = target
 			self.facing   = direction
 
-	# ── Enemy AI ──────────────────────────────────────────────────────────────
+	# -- Enemy AI --------------------------------------------------------------
 	def bfs_path(self, maze, start, goal):
 		from collections import deque
 		queue = deque([start])
@@ -438,7 +438,7 @@ class Entity:
 		dist_r = my_row - p_row
 		dist_c = my_col - p_col
 
-		# Adjacent → try to attack through an open wall
+		# Adjacent -> try to attack through an open wall
 		if abs(dist_c) + abs(dist_r) == 1:
 			attack_conds = [
 				(dist_c == -1, "right"),  # player is to the right

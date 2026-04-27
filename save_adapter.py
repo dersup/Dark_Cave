@@ -3,7 +3,7 @@ Save-path adapter: desktop writes to ./saves/, browser writes to
 localStorage via pygbag's platform.window shim.
 
 On desktop  : saves go to saves/savegame.json (created next to main.py).
-On browser  : saves go to localStorage key "dark_cave_save" — survives
+On browser  : saves go to localStorage key "dark_cave_save" -- survives
               page reloads, no filesystem access needed.
 """
 import sys
@@ -61,7 +61,7 @@ def read_save() -> str | None:
 
 def write_save(text: str) -> None:
     if IS_BROWSER:
-        # Skip the /tmp write entirely — it's wiped on reload and a failed
+        # Skip the /tmp write entirely -- it's wiped on reload and a failed
         # mkdir would bypass the localStorage mirror.
         _browser_write(text)
         return
