@@ -172,7 +172,6 @@ class Windows:
         self._mp_str = f"MP: {player.mana}/{player.max_mana}"
         self._gold_str = f"Gold: {player.gold}"
 
-    # -- Info Text -------------------------------------------------------------
 
     # -- Panel population ------------------------------------------------------
 

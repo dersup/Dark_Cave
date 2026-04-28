@@ -62,9 +62,14 @@ def play_music():
         # Leave _MUSIC_STARTED False so a later gesture can retry.
         _MUSIC_STARTED = False
 
-async def _menu(win: Windows, prompt: str, options: list[str]) -> str:
-    # Arrow-key / WS selection menu. Returns chosen string.
-    cursor = [0]
+async def _menu(win: Windows, prompt: str, options: list[str],
+                *, allow_back: bool = False, initial_index: int = 0) -> str | None:
+    # Arrow-key / WS selection menu. Returns chosen string, or None if the
+    # user pressed Esc and allow_back=True.
+    cursor = [initial_index % len(options)]
+    hint = ("Up/Down / W/S  navigate       Enter  confirm       Esc  back"
+            if allow_back else
+            "Up/Down / W/S  navigate       Enter  confirm")
 
     while True:
         win.surface.fill(COLOURS["dark_gray"])
@@ -74,7 +79,7 @@ async def _menu(win: Windows, prompt: str, options: list[str]) -> str:
             pre = "▶  " if i == cursor[0] else "   "
             c   = COLOURS["purple"] if i == cursor[0] else COLOURS["orange"]
             win.txt(pre + opt, win.w // 2 - 80, win.h // 4 + 60 + i * 32, "md", c)
-        win.txt("Up/Down / W/S  navigate       Enter  confirm", win.w // 2, win.h * 3 // 4, "sm", COLOURS["gray"], center=True)
+        win.txt(hint, win.w // 2, win.h * 3 // 4, "sm", COLOURS["gray"], center=True)
         pygame.display.flip()
         win.clock.tick(30)
         await asyncio.sleep(0)
@@ -88,13 +93,20 @@ async def _menu(win: Windows, prompt: str, options: list[str]) -> str:
                     cursor[0] = (cursor[0] + 1) % len(options)
                 elif ev.key == pygame.K_RETURN:
                     return options[cursor[0]]
+                elif allow_back and ev.key == pygame.K_ESCAPE:
+                    return None
 
 
-async def _text_input(win: Windows, prompt: str, placeholder: str = "") -> str:
+async def _text_input(win: Windows, prompt: str, placeholder: str = "",
+                      *, allow_back: bool = False, initial: str = "") -> str | None:
     # Single-line text entry. Enter confirms; blank -> placeholder.
-    buf     = ""
+    # Returns None if user pressed Esc and allow_back=True.
+    buf     = initial
     blink   = [True]
     timer   = [0]
+    hint = ("Enter to confirm        Esc to go back"
+            if allow_back else
+            "Enter to confirm")
 
     while True:
         win.surface.fill(COLOURS["dark_gray"])
@@ -103,7 +115,7 @@ async def _text_input(win: Windows, prompt: str, placeholder: str = "") -> str:
         display = (buf or placeholder) + ("|" if blink[0] else " ")
         c = COLOURS["white"] if buf else COLOURS["gray"]
         win.txt(display, win.w // 2, win.h // 2, "md", c, center=True)
-        win.txt("Enter to confirm", win.w // 2, win.h // 2 + 36, "sm", COLOURS["gray"], center=True)
+        win.txt(hint, win.w // 2, win.h // 2 + 36, "sm", COLOURS["gray"], center=True)
         pygame.display.flip()
         # blinking
         dt       = win.clock.tick(30)
@@ -120,32 +132,69 @@ async def _text_input(win: Windows, prompt: str, placeholder: str = "") -> str:
                     return buf.strip() or placeholder
                 elif ev.key == pygame.K_BACKSPACE:
                     buf = buf[:-1]
+                elif allow_back and ev.key == pygame.K_ESCAPE:
+                    return None
                 elif ev.unicode and ev.unicode.isprintable():
                     buf += ev.unicode
 
 async def options(win: Windows):
+    def draw_frame(toast= None):
+        bar = pygame.Surface((win.w, 60), pygame.SRCALPHA)
+        bar.fill((0, 0, 0, 170))
+        win.surface.blit(bar, (0, 12))
+        win.txt(toast, win.w // 2, 42, "md",
+                COLOURS["red"], center=True)
+    async def show_toast(message, ms=1400):
+        # Brief overlay; any keypress dismisses early
+        pygame.event.clear()
+        end = pygame.time.get_ticks() + ms
+        while pygame.time.get_ticks() < end:
+            draw_frame(toast=message)
+            pygame.display.flip()
+            win.clock.tick(30)
+            await asyncio.sleep(0)
+            done = False
+            for ev_ in pygame.event.get():
+                if ev_.type == pygame.QUIT:
+                    _quit_app()
+                if ev_.type == pygame.KEYDOWN:
+                    done = True
+                    break
+            if done:
+                break
+        pygame.event.clear()
     box_checked = -1
     buf_w = ""
     buf_h = ""
     blink = [True]
     timer = [0]
     cursor = [0]
-    side_cursor = [0]
+    side_cursor = [1]
     while True:
         win.surface.fill(COLOURS["black"])
-        box = "☑" if box_checked == 1 else "☐"
+        box = "✕" if box_checked == -1 else "✓"
         pre = "▶ "
-        dis_w = (buf_w or str(win.maze_size[0])) + ("|" if blink[0] and side_cursor[0] else " ")
-        dis_h = (buf_h or str(win.maze_size[1])) + ("|" if blink[0] and not side_cursor[0] else " ")
+        if not buf_w:
+            dis_w = ("|" if blink[0] and side_cursor[0] else " ") + (str(win.maze_size[0]))
+        elif buf_w:
+            dis_w = (buf_w ) + ("|" if blink[0] and side_cursor[0] else " ")
+        if not buf_h:
+            dis_h = ("|" if blink[0] and not side_cursor[0] else " ") + (str(win.maze_size[1]))
+        elif buf_h:
+            dis_h = (buf_h) + ("|" if blink[0] and not side_cursor[0] else " ")
         night = f"Nightmare mode     {box}"
         m_size = f"Maze Size          {dis_w}x{dis_h}"
+        exit_text = "EXIT"
         if cursor[0] == 0:
             night = pre + night
         if cursor[0] == 1:
             m_size = pre + m_size
+        if cursor[0] == 2:
+            exit_text = pre + exit_text
 
         win.txt(night, win.w // 2, win.h // 2, "lg", COLOURS["purple"], center=True)
         win.txt(m_size, win.w//2,win.h//2 + win.font["lg"].get_height() * 2 ,"lg", COLOURS["purple"], center=True)
+        win.txt(exit_text, win.w//1.5, win.h - (win.font["lg"].get_height()* 4),"lg",COLOURS["red"], center=True)
 
         pygame.display.flip()
         dt = win.clock.tick(30)
@@ -164,32 +213,54 @@ async def options(win: Windows):
                 if ev.key == pygame.K_ESCAPE:
                     return
                 elif ev.key in up_keys:
-                    cursor[0] = (cursor[0] - 1) % 2
+                    cursor[0] = (cursor[0] - 1) % 3
                 elif ev.key in down_keys:
-                    cursor[0] = (cursor[0] + 1) % 2
+                    cursor[0] = (cursor[0] + 1) % 3
                 elif ev.key in right_keys and cursor[0] == 1:
                     side_cursor[0] = (side_cursor[0] + 1) % 2
                 elif ev.key in left_keys and cursor[0] == 1:
                     side_cursor[0] = (side_cursor[0] - 1) % 2
                 elif ev.key == pygame.K_RETURN:
                     if cursor[0] == 1:
-                        win.maze_size = (int(buf_w), int(buf_h))
+                        if buf_w and buf_h:
+                            win.maze_size = (int(buf_w), int(buf_h))
+                            await show_toast(f"{str((buf_w, buf_h))}, saved")
+                        elif buf_w:
+                            win.maze_size = (int(buf_w), int(win.maze_size[1]))
+                            await show_toast(f"{str((buf_w, win.maze_size[1]))}, saved")
+                        elif buf_h:
+                            win.maze_size = (int(win.maze_size[0]), int(buf_h))
+                            await show_toast(f"{str((win.maze_size[0], buf_h))}, saved")
+                        else:
+                            await show_toast(f"{str((win.maze_size[0], win.maze_size[1]))}, saved")
                     elif cursor[0] == 0:
                         box_checked *= -1
                         win.night *= -1
+                    elif cursor[0] == 2:
+                        return
                 elif ev.unicode and ev.unicode.isdigit():
                     if side_cursor[0] == 1:
                         buf_w += ev.unicode
                     elif side_cursor[0] == 0:
                         buf_h += ev.unicode
+                elif ev.key == pygame.K_BACKSPACE:
+                    if side_cursor[0] == 1:
+                        buf_w = buf_w[:-1]
+                    elif side_cursor[0] == 0:
+                        buf_h = buf_h[:-1]
 
 
 
-async def _stat_allocation(win: Windows, player: Entity):
+
+async def _stat_allocation(win: Windows, player: Entity, *, allow_back: bool = False) -> bool:
     """
     Point-buy stat screen.
     Left/Right (or A/D) to add/remove points from highlighted stat.
     Enter when all 25 points spent.
+
+    Returns True when the player confirms, False if they pressed Esc to go
+    back (only possible when allow_back=True). On True, player.stats is
+    mutated in place; on False, player is left untouched.
     """
     stats    = ["attack", "defence", "luck",
                 "magic_defence", "magic_attack", "agility"]
@@ -197,7 +268,7 @@ async def _stat_allocation(win: Windows, player: Entity):
     total    = 25
     cursor   = [0]
     hold_timer = 0
-    HOLD_DELAY = 0.1
+    HOLD_DELAY = 0.2
 
     while True:
         remaining = total - sum(values.values())
@@ -211,9 +282,10 @@ async def _stat_allocation(win: Windows, player: Entity):
             # visual bar
             bar = "█" * values[stat] + "░" * (25 - values[stat])
             win.txt(f"{pre}{stat:<15} {values[stat]:>2}  {bar[:20]}", win.w // 2 - 160, y, "md", c)
-        hint = ("W/S:navigate    A/D or ◄►:remove/add    Enter:confirm (when 0 left)"
-                if remaining > 0 else
-                "W/S:navigate    A/D or ◄►:adjust    Enter:confirm")
+        base_hint = ("W/S:navigate    A/D or ◄►:remove/add    Enter:confirm (when 0 left)"
+                     if remaining > 0 else
+                     "W/S:navigate    A/D or ◄►:adjust    Enter:confirm")
+        hint = base_hint + ("    Esc:back" if allow_back else "")
         win.txt(hint, win.w // 2, win.h * 5 // 6, "sm", COLOURS["gray"], center=True)
         pygame.display.flip()
         dt = win.clock.tick(30) / 1000
@@ -223,6 +295,16 @@ async def _stat_allocation(win: Windows, player: Entity):
         down_keys = (pygame.K_DOWN, pygame.K_s)
         left_keys = (pygame.K_LEFT, pygame.K_a)
         right_keys = (pygame.K_RIGHT, pygame.K_d)
+        if any(keys[k] for k in right_keys) or any(keys[k] for k in left_keys):
+            hold_timer += dt
+            if hold_timer >= HOLD_DELAY:
+                hold_timer = 0
+                if any(keys[k] for k in right_keys) and remaining > 0:
+                    values[stats[cursor[0]]] += 1
+                elif any(keys[k] for k in left_keys) and values[stats[cursor[0]]] > 0:
+                    values[stats[cursor[0]]] -= 1
+        else:
+            hold_timer = 0
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT: _quit_app()
             if ev.type == pygame.KEYDOWN:
@@ -237,17 +319,79 @@ async def _stat_allocation(win: Windows, player: Entity):
                 elif ev.key == pygame.K_RETURN and remaining == 0:
                     for s, v in values.items():
                         player.stats[s] = v
-                    return
-        if any(keys[k] for k in right_keys) or any(keys[k] for k in left_keys):
-            hold_timer -= dt
-            if hold_timer <= 0:
-                hold_timer = HOLD_DELAY
-                if any(keys[k] for k in right_keys) and remaining > 0:
-                    values[stats[cursor[0]]] += 1
-                elif any(keys[k] for k in left_keys) and values[stats[cursor[0]]] > 0:
-                    values[stats[cursor[0]]] -= 1
-        else:
-            hold_timer = 0
+                    return True
+                elif allow_back and ev.key == pygame.K_ESCAPE:
+                    return False
+
+
+async def _character_creation(win: Windows) -> Entity | None:
+    """
+    Walk the player through gender -> name -> weapon -> stat allocation.
+    Esc on any step returns to the previous step; Esc on the first step
+    returns None so the caller can fall back to the start menu.
+
+    Each step retains its previous selection when revisited (cursor
+    position, typed name) so backing out is non-destructive. The weapon
+    is rolled fresh whenever the weapon step is confirmed.
+    """
+    gender_options = ["Male", "Female", "Non-Binary"]
+    weapon_options = list(BASE_WEAPONS.keys()) + [list(BASE_STAFFS.keys())[0]]
+
+    gender_idx = 0
+    name       = ""
+    weapon_idx = 0
+    weapon_obj = None   # rolled weapon, populated on weapon-step confirm
+
+    step = 0
+    while True:
+        if step == 0:
+            choice = await _menu(
+                win, "Choose your hero's gender", gender_options,
+                allow_back=True, initial_index=gender_idx,
+            )
+            if choice is None:
+                return None
+            gender_idx = gender_options.index(choice)
+            step = 1
+
+        elif step == 1:
+            gender_str = gender_options[gender_idx].lower().replace("-", " ")
+            default    = name_gen(gender_str if gender_str in ("male", "female") else "")
+            entered    = await _text_input(
+                win, "What is your hero's name?", default,
+                allow_back=True, initial=name,
+            )
+            if entered is None:
+                step = 0
+                continue
+            name = entered
+            step = 2
+
+        elif step == 2:
+            choice = await _menu(
+                win, "choose your weapon", weapon_options,
+                allow_back=True, initial_index=weapon_idx,
+            )
+            if choice is None:
+                step = 1
+                continue
+            weapon_idx = weapon_options.index(choice)
+            if choice == "apprentice staff":
+                weapon_obj = generate_staff("player", "apprentice staff")
+            else:
+                weapon_obj = generate_weapon_loot("player", choice)
+            step = 3
+
+        else:  # step == 3
+            armor  = generate_armor_loot("player")
+            player = Entity(name, 100, 100, armor_=armor, weapon_=weapon_obj)
+            confirmed = await _stat_allocation(win, player, allow_back=True)
+            if not confirmed:
+                step = 2
+                continue
+            for _ in range(2):
+                player.add_to_inventory(generate_items_loot("player"))
+            return player
 
 
 # ===============================================================================
@@ -311,7 +455,7 @@ async def start_menu(win: Windows) -> tuple:
     cursor  = [0]
 
     def draw_frame(toast=None):
-        # Background: hero image, with a tasteful fallback if it failed to load
+        # Background: hero image, with a fallback if it failed to load
         if hero is not None:
             win.surface.blit(hero, (0, 0))
         else:
@@ -452,36 +596,23 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
     await preload_sprites()
     win._restart_request = None
 
-    # -- Start menu (only on very first call) --------------------------------
+    # -- Start menu / character creation (only on very first call) ----------
+    # Backing out of character creation returns to the start menu, so wrap
+    # both screens in a loop and keep going until we have a player.
     if player is None and maze is None:
-        loaded_player, loaded_maze = await start_menu(win)
-        if loaded_player:
-            player = loaded_player
-            maze   = loaded_maze
-
-    # -- Character creation (only when no save was loaded) -------------------
-    if player is None:
-        gender_choice = await _menu(win, "Choose your hero's gender",
-                               ["Male", "Female", "Non-Binary"])
-        gender  = gender_choice.lower().replace("-", " ")
-        default = name_gen(gender if gender in ("male","female") else "")
-        name    = await _text_input(win, "What is your hero's name?", default)
-        available = list(BASE_WEAPONS.keys())
-        available.append(list(BASE_STAFFS.keys())[0])
-        weapon  = await _menu(win,"choose your weapon", available)
-        if weapon == "apprentice staff":
-            weapon = generate_staff("player","apprentice staff")
-        else:
-            weapon = generate_weapon_loot("player",weapon)
-        armor   = generate_armor_loot("player")
-        player  = Entity(name, 100, 100, armor_=armor, weapon_=weapon)
-        await _stat_allocation(win, player)
-        for _ in range(2):
-            player.add_to_inventory(generate_items_loot("player"))
+        while player is None:
+            loaded_player, loaded_maze = await start_menu(win)
+            if loaded_player:
+                player, maze = loaded_player, loaded_maze
+                break
+            # User chose Start (no save loaded) -> walk through char creation.
+            # Returning None means they backed all the way out; loop the
+            # start menu again.
+            player = await _character_creation(win)
 
     # -- Maze (skip rebuild when loaded from save) ----------------------------
     if maze is None:
-        maze = Maze(win.maze_size[1],win.maze_size[0] , win)
+        maze = Maze(win.maze_size[1], win.maze_size[0], win)
         maze.create_maze()
         maze.player_init(player)
         maze.monsters_init()
@@ -540,7 +671,9 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
                         maze.update_visibility(cell.enemy_entity,3)
                     else:
                         cell.enemy_entity.visible_cells = set()
-                    new_cell = cell.enemy_entity.enemy_turn(player, maze)
+                    new_cell, message = cell.enemy_entity.enemy_turn(player, maze)
+                    if message is not None:
+                        win.log(message)
                     if new_cell:
                         source_visible = tuple(cell.location) in player.visible_cells
                         dest_visible = new_cell and tuple(new_cell.location) in player.visible_cells
@@ -608,6 +741,38 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
 
     # -- Inventory ------------------------------------------------------------
 
+    # Held-key cursor auto-repeat for panels (matches _stat_allocation timing).
+    # The initial press is handled by bindings registered in bind_panel; this
+    # state machine adds the "keep moving while held" behavior on top.
+    PANEL_HOLD_DELAY = 0.2  # seconds between repeats while a direction is held
+    _panel_hold = {"cursor_fn": None, "timer": 0.0, "last_ms": 0}
+
+    def _tick_panel_hold():
+        cursor_fn = _panel_hold["cursor_fn"]
+        now = pygame.time.get_ticks()
+        if cursor_fn is None:
+            # No panel open -> keep last_ms current so the first frame after
+            # a panel opens has a sensible (small) dt.
+            _panel_hold["last_ms"] = now
+            return
+        dt = (now - _panel_hold["last_ms"]) / 1000.0
+        _panel_hold["last_ms"] = now
+        # If something paused the loop (animation, tab switch, breakpoint),
+        # don't immediately fire a repeat once we resume.
+        if dt > 0.5:
+            _panel_hold["timer"] = 0.0
+            return
+        keys = pygame.key.get_pressed()
+        up_held   = keys[pygame.K_UP]   or keys[pygame.K_w]
+        down_held = keys[pygame.K_DOWN] or keys[pygame.K_s]
+        if up_held or down_held:
+            _panel_hold["timer"] += dt
+            if _panel_hold["timer"] >= PANEL_HOLD_DELAY:
+                _panel_hold["timer"] = 0.0
+                cursor_fn(-1 if up_held else 1)
+        else:
+            _panel_hold["timer"] = 0.0
+
     _PANELS = {
         "inventory": dict(
             close_key   = pygame.K_i,
@@ -661,12 +826,18 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         # Save/load still works inside panels
         win.bind(pygame.K_F5,       do_save)
         win.bind(pygame.K_F9,       do_load)
+        # Enable held-key cursor auto-repeat for this panel.
+        _panel_hold["cursor_fn"] = cursor
+        _panel_hold["timer"]     = 0.0
+        _panel_hold["last_ms"]   = pygame.time.get_ticks()
 
     def open_inventory():  open_panel("inventory")
     def open_spell_list(): open_panel("spell_list")
 
     def bind_game():
         win.unbind_all()
+        # Disable the panel held-key auto-repeat.
+        _panel_hold["cursor_fn"] = None
         # Turning (shift + direction)
         win.bind(("shift", pygame.K_UP),    lambda: turn("up"))
         win.bind(("shift", pygame.K_DOWN),  lambda: turn("down"))
@@ -712,6 +883,7 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
             continue
         if not win.tick():
             _quit()
+        _tick_panel_hold()
         redraw()
 
 

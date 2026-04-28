@@ -410,6 +410,7 @@ class Entity:
 
 
 	def enemy_turn(self, player, maze, on_complete=None):
+		message = ""
 		def _done():
 			if on_complete: on_complete()
 
@@ -426,13 +427,13 @@ class Entity:
 			self.health = min(10 + self.health,self.max_health)
 
 		if not self.location:
-			_done(); return None
+			_done(); return None,None
 		my_row, my_col = self.location.location
 
 		if self.health <= 0:
 			self.give_inventory(maze.cells[my_row][my_col])
 			maze.cells[my_row][my_col].remove_enemy()
-			return None
+			return None,None
 
 		p_row, p_col = player.location.location
 		dist_r = my_row - p_row
@@ -451,9 +452,9 @@ class Entity:
 					# also verify the player's side wall is open
 					opposite = {"right": "left", "left": "right", "top": "bottom", "bottom": "top"}
 					if not getattr(player.location, opposite[wall]):
-						self.attack_target(player, self.weapon, maze)
+						message = self.attack_target(player, self.weapon, maze)
 						_done();
-						return self.location
+						return self.location,message
 		path = None
 		for (y,x) in self.visible_cells:
 			if maze.cells[y][x].player_entity:
@@ -470,7 +471,7 @@ class Entity:
 			        if self.location.can_move(d, maze, is_enemy=True) != "bump"]
 			if not dirs:
 				_done();
-				return self.location
+				return self.location,None
 			direction = random.choice(dirs)
 			row, col = next_cell(my_row, my_col, direction)
 		if 0 <= row < maze.num_rows and 0 <= col < maze.num_cols:
@@ -479,4 +480,4 @@ class Entity:
 			maze.cells[my_row][my_col].remove_enemy()
 			maze.cells[row][col].set_enemy(self)
 			self.location = maze.cells[row][col]
-			_done(); return self.location
+			_done(); return self.location,None
