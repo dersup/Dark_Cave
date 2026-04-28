@@ -280,6 +280,16 @@ class Windows:
         self.bind(pygame.K_y, on_retry)
         self.bind(pygame.K_n, on_quit)
 
+
+    def show_win(self, player, maze, on_retry, on_quit):
+        score = 1000 + ((player.gold // 10) + player.kills) * maze.level
+        self._game_over = True
+        self._go_text = f"SCORE: {score}\n\nYOU WON!!!\n\nTRY AGAIN?\n  Y)   (N"
+        self._ui_blocked = False
+        self.unbind_all()
+        self.bind(pygame.K_y, on_retry)
+        self.bind(pygame.K_n, on_quit)
+
     # -- Render pass -----------------------------------------------------------
 
     def render(self):

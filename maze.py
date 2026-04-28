@@ -8,6 +8,14 @@ from pathlib import Path
 from drawing import Cell, Point
 from entity import Entity
 from generator_ import generate_enemy
+def _quit_app():
+    """Clean shutdown that works on desktop and in pygbag."""
+    if sys.platform == "emscripten":
+        # In browser, SystemExit is caught by pygbag's runtime and the tab
+        # returns to idle. Calling pygame.quit() here can crash the WASM heap.
+        raise SystemExit
+    pygame.quit()
+    sys.exit()
 
 
 class Maze:
@@ -180,14 +188,10 @@ class Maze:
         self._place_entrance_exit(cell, wall)
 
     def monsters_init(self):
-        max_enemies = int(min(
-            self.level * random.randint(10, 30),
-            (self.num_rows * self.num_cols) / 2
-        ))
+        max_enemies = int(random.randint(self.num_rows,self.num_rows*(self.num_cols//2)))
         candidates = [
             cell for row in self.cells for cell in row
             if not cell.player
-            and (cell.location[0], cell.location[1]) not in self.visible_cells
         ]
         random.shuffle(candidates)
         placed = 0
@@ -236,6 +240,12 @@ class Maze:
     # Level progression
     # -----------------------------------------------------------------------
     async def next_level(self, player):
+        def _retry():
+            self._win._restart_request = ("retry", None, None)
+            self._win.show_win(player, self, on_retry=_retry, on_quit=_quit_app())
+        if self.level == 10:
+            self._win.show_win(player,self,on_retry=_retry,on_quit=_quit_app())
+        self._win.set_player_stats(player)
         self._win._ui_blocked = True
         self.level += 1
         self.cells = []

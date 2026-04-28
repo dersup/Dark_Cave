@@ -582,8 +582,12 @@ async def start_menu(win: Windows) -> tuple:
 
 async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
     # -- Window ---------------------------------------------------------
+    pygame.init()
     if win is None:
-        win = Windows(1280, 800)
+        info = pygame.display.Info()
+        screen_width = info.current_w
+        screen_height = info.current_h
+        win = Windows(screen_width, screen_height)
     else:
         # Reset UI state for a new run / new level
         win._game_over      = False

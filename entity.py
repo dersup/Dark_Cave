@@ -481,3 +481,5 @@ class Entity:
 			maze.cells[row][col].set_enemy(self)
 			self.location = maze.cells[row][col]
 			_done(); return self.location,None
+		_done()
+		return self.location, None
