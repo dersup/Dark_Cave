@@ -71,10 +71,27 @@ class Maze:
                             img, (self.CELL_SIZE, self.CELL_SIZE)
                         )
                     self._tile_cache[f.name] = img
-                tiles.append(self._tile_cache[f.name])
+                tiles.append((self._tile_cache[f.name],f.name))
         if not tiles:
             raise FileNotFoundError(f"No PNG tiles found in {tile_dir}")
         return tiles
+
+    def _load_tile(self,cell,name):
+        """Return list of pygame.Surface for current level's floor tiles."""
+        tile_dir = self._tile_dir()
+        for f in sorted(tile_dir.iterdir()):
+            if f.suffix.lower() == ".png":
+                if f.name == name:
+                    img = pygame.image.load(str(f)).convert_alpha()
+                    # Scale to CELL_SIZE if the PNG differs
+                    if img.get_size() != (self.CELL_SIZE, self.CELL_SIZE):
+                        img = pygame.transform.scale(
+                            img, (self.CELL_SIZE, self.CELL_SIZE)
+                        )
+                    self._tile_cache[f.name] = img
+                    cell.floor_tile, cell.floor_type = (self._tile_cache[f.name],f.name)
+                    return
+
 
     # -----------------------------------------------------------------------
     # Maze creation
@@ -93,7 +110,7 @@ class Maze:
                 br = Point(tl.x + cs,           tl.y + cs)
                 cell          = Cell(self._win, tl, br)
                 cell.location = [row, col]
-                cell.floor_tile = random.choice(tiles)
+                cell.floor_tile, cell.floor_type = random.choice(tiles)
                 self.cells[row].append(cell)
 
         self._carve_passages()

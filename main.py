@@ -64,12 +64,21 @@ def play_music():
 
 async def _menu(win: Windows, prompt: str, options: list[str],
                 *, allow_back: bool = False, initial_index: int = 0) -> str | None:
-    # Arrow-key / WS selection menu. Returns chosen string, or None if the
-    # user pressed Esc and allow_back=True.
+    # Arrow-key / WS selection menu, with mouse hover + click. Returns the
+    # chosen string, or None if the user pressed Esc and allow_back=True.
     cursor = [initial_index % len(options)]
-    hint = ("Up/Down / W/S  navigate       Enter  confirm       Esc  back"
+    hint = ("Up/Down / W/S  navigate       Enter / Click  confirm       Esc  back"
             if allow_back else
-            "Up/Down / W/S  navigate       Enter  confirm")
+            "Up/Down / W/S  navigate       Enter / Click  confirm")
+
+    def option_rects():
+        # Wide horizontal hit-strip per row -- generous so hover targets are
+        # easy to land on. Y matches the y used in win.txt below.
+        rects = []
+        for i in range(len(options)):
+            y = win.h // 4 + 60 + i * 32
+            rects.append(pygame.Rect(win.w // 2 - 200, y - 4, 400, 30))
+        return rects
 
     while True:
         win.surface.fill(COLOURS["dark_gray"])
@@ -84,8 +93,19 @@ async def _menu(win: Windows, prompt: str, options: list[str],
         win.clock.tick(30)
         await asyncio.sleep(0)
 
+        rects = option_rects()
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:        _quit_app()
+            if ev.type == pygame.MOUSEMOTION:
+                # Hover -> move selection cursor.
+                for i, r in enumerate(rects):
+                    if r.collidepoint(ev.pos):
+                        cursor[0] = i
+                        break
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                for i, r in enumerate(rects):
+                    if r.collidepoint(ev.pos):
+                        return options[i]
             if ev.type == pygame.KEYDOWN:
                 if ev.key in (pygame.K_UP, pygame.K_w):
                     cursor[0] = (cursor[0] - 1) % len(options)
@@ -99,14 +119,21 @@ async def _menu(win: Windows, prompt: str, options: list[str],
 
 async def _text_input(win: Windows, prompt: str, placeholder: str = "",
                       *, allow_back: bool = False, initial: str = "") -> str | None:
-    # Single-line text entry. Enter confirms; blank -> placeholder.
-    # Returns None if user pressed Esc and allow_back=True.
+    # Single-line text entry. Enter / click Confirm submits; blank -> placeholder.
+    # Returns None if user pressed Esc / clicked Back and allow_back=True.
     buf     = initial
     blink   = [True]
     timer   = [0]
-    hint = ("Enter to confirm        Esc to go back"
+    hint = ("Esc / click Back to go back        Enter / click Confirm"
             if allow_back else
-            "Enter to confirm")
+            "Enter / click Confirm")
+
+    def button_rects():
+        # Confirm centred below the hint; Back to its left when allowed.
+        by = win.h // 2 + 80
+        confirm = pygame.Rect(win.w // 2 - 200, by, 120, 40)
+        back    = pygame.Rect(win.w // 2 + 60, by, 120, 40) if allow_back else None
+        return confirm, back
 
     while True:
         win.surface.fill(COLOURS["dark_gray"])
@@ -116,6 +143,20 @@ async def _text_input(win: Windows, prompt: str, placeholder: str = "",
         c = COLOURS["white"] if buf else COLOURS["gray"]
         win.txt(display, win.w // 2, win.h // 2, "md", c, center=True)
         win.txt(hint, win.w // 2, win.h // 2 + 36, "sm", COLOURS["gray"], center=True)
+
+        # Clickable Confirm / Back buttons (drawn each frame; tint on hover)
+        confirm_rect, back_rect = button_rects()
+        mp = pygame.mouse.get_pos()
+        c_color = COLOURS["purple"] if confirm_rect.collidepoint(mp) else COLOURS["orange"]
+        pygame.draw.rect(win.surface, c_color, confirm_rect, width=2, border_radius=4)
+        win.txt("Confirm", confirm_rect.centerx, confirm_rect.centery-10, "md",
+                c_color, center=True)
+        if back_rect is not None:
+            b_color = COLOURS["purple"] if back_rect.collidepoint(mp) else COLOURS["red"]
+            pygame.draw.rect(win.surface, b_color, back_rect, width=2, border_radius=4)
+            win.txt("Back", back_rect.centerx, back_rect.centery-10, "md",
+                    b_color, center=True)
+
         pygame.display.flip()
         # blinking
         dt       = win.clock.tick(30)
@@ -127,6 +168,11 @@ async def _text_input(win: Windows, prompt: str, placeholder: str = "",
 
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:        _quit_app()
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                if confirm_rect.collidepoint(ev.pos):
+                    return buf.strip() or placeholder
+                if back_rect is not None and back_rect.collidepoint(ev.pos):
+                    return None
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_RETURN:
                     return buf.strip() or placeholder
@@ -145,7 +191,7 @@ async def options(win: Windows):
         win.txt(toast, win.w // 2, 42, "md",
                 COLOURS["red"], center=True)
     async def show_toast(message, ms=1400):
-        # Brief overlay; any keypress dismisses early
+        # Brief overlay; any keypress / mouse click dismisses early
         pygame.event.clear()
         end = pygame.time.get_ticks() + ms
         while pygame.time.get_ticks() < end:
@@ -157,7 +203,7 @@ async def options(win: Windows):
             for ev_ in pygame.event.get():
                 if ev_.type == pygame.QUIT:
                     _quit_app()
-                if ev_.type == pygame.KEYDOWN:
+                if ev_.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
                     done = True
                     break
             if done:
@@ -192,9 +238,38 @@ async def options(win: Windows):
         if cursor[0] == 2:
             exit_text = pre + exit_text
 
-        win.txt(night, win.w // 2, win.h // 2, "lg", COLOURS["purple"], center=True)
-        win.txt(m_size, win.w//2,win.h//2 + win.font["lg"].get_height() * 2 ,"lg", COLOURS["purple"], center=True)
-        win.txt(exit_text, win.w//1.5, win.h - (win.font["lg"].get_height()* 4),"lg",COLOURS["red"], center=True)
+        night_y = win.h // 2
+        msize_y = win.h // 2 + win.font["lg"].get_height() * 2
+        exit_y  = win.h - (win.font["lg"].get_height() * 4)
+        win.txt(night, win.w // 2, night_y, "lg", COLOURS["purple"], center=True)
+        win.txt(m_size, win.w // 2, msize_y, "lg", COLOURS["purple"], center=True)
+        win.txt(exit_text, win.w // 1.5, exit_y, "lg", COLOURS["red"], center=True)
+
+        # Mouse hit-areas. Recomputed each frame so they track resize & retext.
+        font_lg     = win.font["lg"]
+        line_h      = font_lg.get_height()
+        night_w, _  = font_lg.size(night)
+        msize_w, _  = font_lg.size(m_size)
+        exit_w, _   = font_lg.size(exit_text)
+        night_rect  = pygame.Rect(win.w // 2 - night_w // 2,
+                                  night_y - line_h // 2, night_w, line_h)
+        msize_rect  = pygame.Rect(win.w // 2 - msize_w // 2,
+                                  msize_y - line_h // 2, msize_w, line_h)
+        exit_rect   = pygame.Rect(int(win.w / 1.5) - exit_w // 2,
+                                  exit_y  - line_h // 2, exit_w, line_h)
+
+        # Within the maze-size row, split the displayed dimensions into
+        # width / height halves for click-to-focus. The "Maze Size          "
+        # prefix has a known width; "{dis_w}", then "x", then "{dis_h}".
+        msize_prefix    = ("▶ " if cursor[0] == 1 else "") + "Maze Size          "
+        prefix_w        = font_lg.size(msize_prefix)[0]
+        widthstr_w      = font_lg.size(dis_w)[0]
+        x_glyph_w       = font_lg.size("x")[0]
+        dim_left        = msize_rect.x + prefix_w
+        width_rect      = pygame.Rect(dim_left, msize_rect.y, widthstr_w, line_h)
+        height_left     = dim_left + widthstr_w + x_glyph_w
+        height_rect     = pygame.Rect(height_left, msize_rect.y,
+                                      msize_rect.right - height_left, line_h)
 
         pygame.display.flip()
         dt = win.clock.tick(30)
@@ -209,6 +284,30 @@ async def options(win: Windows):
         right_keys = (pygame.K_RIGHT, pygame.K_d)
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT: _quit_app()
+            if ev.type == pygame.MOUSEMOTION:
+                if night_rect.collidepoint(ev.pos):
+                    cursor[0] = 0
+                elif msize_rect.collidepoint(ev.pos):
+                    cursor[0] = 1
+                elif exit_rect.collidepoint(ev.pos):
+                    cursor[0] = 2
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                # Width / height hit-tests are subsets of msize_rect, so check
+                # them first; fall through to the row click otherwise.
+                if width_rect.collidepoint(ev.pos):
+                    cursor[0]      = 1
+                    side_cursor[0] = 1
+                elif height_rect.collidepoint(ev.pos):
+                    cursor[0]      = 1
+                    side_cursor[0] = 0
+                elif night_rect.collidepoint(ev.pos):
+                    cursor[0]    = 0
+                    box_checked *= -1
+                    win.night   *= -1
+                elif msize_rect.collidepoint(ev.pos):
+                    cursor[0] = 1
+                elif exit_rect.collidepoint(ev.pos):
+                    return
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_ESCAPE:
                     return
@@ -255,7 +354,9 @@ async def options(win: Windows):
 async def _stat_allocation(win: Windows, player: Entity, *, allow_back: bool = False) -> bool:
     """
     Point-buy stat screen.
-    Left/Right (or A/D) to add/remove points from highlighted stat.
+    Left/Right (or A/D) to add/remove points from highlighted stat. Click a
+    row to select, click +/- buttons to adjust, click Confirm/Back at the
+    bottom (Confirm only enabled at 0 remaining).
     Enter when all 25 points spent.
 
     Returns True when the player confirms, False if they pressed Esc to go
@@ -270,6 +371,30 @@ async def _stat_allocation(win: Windows, player: Entity, *, allow_back: bool = F
     hold_timer = 0
     HOLD_DELAY = 0.2
 
+    def row_rects():
+        # Per row: (row_select_rect, minus_rect, plus_rect). The row rect
+        # covers just the rendered text; minus/plus sit to its right.
+        out = []
+        font_md = win.font["md"]
+        for i, stat in enumerate(stats):
+            y = win.h // 6 + 55 + i * 34
+            bar = "█" * values[stat] + "░" * (25 - values[stat])
+            text = f"  {stat:<15} {values[stat]:>2}  {bar[:20]}"
+            tw, th = font_md.size(text)
+            text_x = win.w // 2 - 160
+            row    = pygame.Rect(text_x, y - 4, tw, max(th, 30))
+            minus  = pygame.Rect(text_x + tw + 12, y - 4, 28, 30)
+            plus   = pygame.Rect(minus.right + 6,  y - 4, 28, 30)
+            out.append((row, minus, plus))
+        return out
+
+    def confirm_back_rects():
+        # Sit just above the keyboard hint line.
+        cy = win.h * 5 // 6 - 50
+        confirm = pygame.Rect(win.w // 2 - 200, cy, 120, 36)
+        back    = pygame.Rect(win.w // 2 + 60, cy, 120, 36) if allow_back else None
+        return confirm, back
+
     while True:
         remaining = total - sum(values.values())
         win.surface.fill(COLOURS["black"])
@@ -282,11 +407,41 @@ async def _stat_allocation(win: Windows, player: Entity, *, allow_back: bool = F
             # visual bar
             bar = "█" * values[stat] + "░" * (25 - values[stat])
             win.txt(f"{pre}{stat:<15} {values[stat]:>2}  {bar[:20]}", win.w // 2 - 160, y, "md", c)
-        base_hint = ("W/S:navigate    A/D or ◄►:remove/add    Enter:confirm (when 0 left)"
+
+        # +/- buttons next to each row
+        rects = row_rects()
+        mp    = pygame.mouse.get_pos()
+        for ri, (row_r, minus_r, plus_r) in enumerate(rects):
+            for sign, r in (("-", minus_r), ("+", plus_r)):
+                hover = r.collidepoint(mp)
+                col   = COLOURS["purple"] if hover else COLOURS["orange"]
+                pygame.draw.rect(win.surface, col, r, width=2, border_radius=4)
+                if sign == "-":
+                    win.txt(sign, r.centerx, r.centery-10, "md", col, center=True)
+                elif sign == "+":
+                    win.txt(sign, r.centerx, r.centery-12, "md", col, center=True)
+
+
+        base_hint = ("W/S/click:select    A/D ◄► +/-:adjust    Enter/Confirm: done"
                      if remaining > 0 else
-                     "W/S:navigate    A/D or ◄►:adjust    Enter:confirm")
-        hint = base_hint + ("    Esc:back" if allow_back else "")
+                     "W/S/click:select    A/D ◄► +/-:adjust    Enter/Confirm")
+        hint = base_hint + ("    Esc/Back" if allow_back else "")
         win.txt(hint, win.w // 2, win.h * 5 // 6, "sm", COLOURS["gray"], center=True)
+
+        # Confirm + Back buttons (Confirm dimmed while remaining > 0)
+        confirm_r, back_r = confirm_back_rects()
+        confirm_active    = (remaining == 0)
+        c_hover           = confirm_r.collidepoint(mp) and confirm_active
+        c_color           = (COLOURS["purple"] if c_hover else
+                             (COLOURS["orange"] if confirm_active else COLOURS["gray"]))
+        pygame.draw.rect(win.surface, c_color, confirm_r, width=2, border_radius=4)
+        win.txt("Confirm", confirm_r.centerx, confirm_r.centery-10, "md", c_color, center=True)
+        if back_r is not None:
+            b_hover = back_r.collidepoint(mp)
+            b_color = COLOURS["purple"] if b_hover else COLOURS["red"]
+            pygame.draw.rect(win.surface, b_color, back_r, width=2, border_radius=4)
+            win.txt("Back", back_r.centerx, back_r.centery-10, "md", b_color, center=True)
+
         pygame.display.flip()
         dt = win.clock.tick(30) / 1000
         await asyncio.sleep(0)
@@ -306,7 +461,42 @@ async def _stat_allocation(win: Windows, player: Entity, *, allow_back: bool = F
         else:
             hold_timer = 0
         for ev in pygame.event.get():
+            # `remaining` was snapshotted at frame start; recompute fresh per
+            # event so that several +/− or Confirm events in the same frame
+            # see the up-to-date budget.
+            remaining = total - sum(values.values())
             if ev.type == pygame.QUIT: _quit_app()
+            if ev.type == pygame.MOUSEMOTION:
+                # Hover over a row (or its +/- buttons) -> select that stat.
+                for ri, (row_r, minus_r, plus_r) in enumerate(rects):
+                    if (row_r.collidepoint(ev.pos) or
+                        minus_r.collidepoint(ev.pos) or
+                        plus_r.collidepoint(ev.pos)):
+                        cursor[0] = ri
+                        break
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                # Confirm / Back checked first (they live below the rows).
+                if confirm_r.collidepoint(ev.pos) and remaining == 0:
+                    for s, v in values.items():
+                        player.stats[s] = v
+                    return True
+                if back_r is not None and back_r.collidepoint(ev.pos):
+                    return False
+                # Then +/- and row select.
+                for ri, (row_r, minus_r, plus_r) in enumerate(rects):
+                    if minus_r.collidepoint(ev.pos):
+                        cursor[0] = ri
+                        if values[stats[ri]] > 0:
+                            values[stats[ri]] -= 1
+                        break
+                    if plus_r.collidepoint(ev.pos):
+                        cursor[0] = ri
+                        if remaining > 0:
+                            values[stats[ri]] += 1
+                        break
+                    if row_r.collidepoint(ev.pos):
+                        cursor[0] = ri
+                        break
             if ev.type == pygame.KEYDOWN:
                 if ev.key in up_keys:
                     cursor[0] = (cursor[0] - 1) % len(stats)
@@ -446,9 +636,9 @@ async def start_menu(win: Windows) -> tuple:
       (None, None)   -> begin a new game
       (player, maze) -> resume a loaded save
 
-    NOTE: play_music() is deferred until the first user KEYDOWN below.
-    Browsers block autoplay until a user gesture -- calling it here would
-    silently fail and leave the game muted.
+    NOTE: play_music() is deferred until the first user KEYDOWN / mouse click
+    below. Browsers block autoplay until a user gesture -- calling it here
+    would silently fail and leave the game muted.
     """
     hero    = _hero_image(win)
     buttons = _hero_button_rects(win)
@@ -483,7 +673,7 @@ async def start_menu(win: Windows) -> tuple:
                     COLOURS["red"], center=True)
 
     async def show_toast(message, ms=1400):
-        # Brief overlay; any keypress dismisses early
+        # Brief overlay; any keypress / mouse click dismisses early
         pygame.event.clear()
         end = pygame.time.get_ticks() + ms
         while pygame.time.get_ticks() < end:
@@ -495,7 +685,7 @@ async def start_menu(win: Windows) -> tuple:
             for ev_ in pygame.event.get():
                 if ev_.type == pygame.QUIT:
                     _quit_app()
-                if ev_.type == pygame.KEYDOWN:
+                if ev_.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
                     done = True
                     break
             if done:
@@ -514,19 +704,66 @@ async def start_menu(win: Windows) -> tuple:
             win.surface.blit(dim, (0, 0))
             win.txt(message, win.w // 2, win.h // 2 - 20,
                     "md", COLOURS["gray"], center=True)
-            win.txt("Y/N", win.w // 2, win.h // 2 + 50,
-                    "md", COLOURS["red"], center=True)
+
+            # Clickable YES / NO buttons (keyboard Y/N/Enter/Esc still work)
+            btn_y    = win.h // 2 + 50
+            yes_rect = pygame.Rect(win.w // 2 - 130, btn_y - 18, 100, 36)
+            no_rect  = pygame.Rect(win.w // 2 + 30,  btn_y - 18, 100, 36)
+            mp = pygame.mouse.get_pos()
+            for label, r in (("YES", yes_rect), ("NO", no_rect)):
+                hover = r.collidepoint(mp)
+                col   = COLOURS["purple"] if hover else COLOURS["red"]
+                pygame.draw.rect(win.surface, col, r, width=2, border_radius=4)
+                win.txt(label, r.centerx, r.centery, "md", col, center=True)
+
             win.clock.tick(30)
             pygame.display.flip()
             await asyncio.sleep(0)
             for ev_ in pygame.event.get():
                 if ev_.type == pygame.QUIT:
                     _quit_app()
+                if ev_.type == pygame.MOUSEBUTTONDOWN and ev_.button == 1:
+                    if yes_rect.collidepoint(ev_.pos):
+                        return True
+                    if no_rect.collidepoint(ev_.pos):
+                        return False
                 if ev_.type == pygame.KEYDOWN:
                     if ev_.key in (pygame.K_RETURN, pygame.K_y):
                         return True
                     if ev_.key in (pygame.K_ESCAPE, pygame.K_n):
                         return False
+
+    async def activate(label):
+        # Returns ("return", value) to break out of the menu, or
+        # ("stay",) to keep the menu running. Used by both the keyboard
+        # (Enter) and mouse (left click) paths.
+        if label == "Start":
+            if save_exists():
+                yn = await yes_no(
+                    "Start a new game? This will overwrite your save."
+                )
+                if not yn:
+                    return ("stay",)
+                delete_save()
+            return ("return", (None, None))
+
+        if label == "Load":
+            if not save_exists():
+                await show_toast("No save file found.")
+                return ("stay",)
+            player, maze = load_game(win)
+            if player and maze:
+                return ("return", (player, maze))
+            await show_toast("Save could not be loaded.")
+            return ("stay",)
+
+        if label == "Options":
+            await options(win)
+            return ("stay",)
+
+        if label == "Exit":
+            _quit_app()  # never returns
+        return ("stay",)
 
     while True:
         draw_frame()
@@ -537,6 +774,22 @@ async def start_menu(win: Windows) -> tuple:
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
                 _quit_app()
+            if ev.type == pygame.MOUSEMOTION:
+                # Hover -> move selection cursor.
+                for i, (label, rect) in enumerate(buttons):
+                    if rect.collidepoint(ev.pos):
+                        cursor[0] = i
+                        break
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                # Click is a confirmed user gesture too -- start audio.
+                play_music()
+                for i, (label, rect) in enumerate(buttons):
+                    if rect.collidepoint(ev.pos):
+                        cursor[0] = i
+                        result = await activate(label)
+                        if result[0] == "return":
+                            return result[1]
+                        break
             if ev.type == pygame.KEYDOWN:
                 # First confirmed user gesture -- safe to start audio now.
                 play_music()
@@ -548,33 +801,9 @@ async def start_menu(win: Windows) -> tuple:
                     cursor[0] = (cursor[0] + 1) % len(buttons)
                 elif ev.key == pygame.K_RETURN:
                     label = buttons[cursor[0]][0]
-
-                    if label == "Start":
-                        if save_exists():
-                            yn = await yes_no(
-                                "Start a new game? This will overwrite your save."
-                            )
-                            if not yn:
-                                continue
-                            delete_save()
-                        return None, None
-
-                    if label == "Load":
-                        if not save_exists():
-                            await show_toast("No save file found.")
-                            continue
-                        player, maze = load_game(win)
-                        if player and maze:
-                            return player, maze
-                        await show_toast("Save could not be loaded.")
-                        continue
-
-                    if label == "Options":
-                        await options(win)
-                        continue
-
-                    if label == "Exit":
-                        _quit_app()
+                    result = await activate(label)
+                    if result[0] == "return":
+                        return result[1]
 
 # ==============================================================================
 #  Main game
@@ -593,6 +822,8 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         win._game_over      = False
         win._go_text        = ""
         win.inventory_show  = False
+        win.spell_list_show = False
+        win.pause_show      = False
         win._log            = []
         win._log_timer      = []
 
@@ -743,6 +974,21 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         else:
             win.log("No save file found.")
 
+    # -- Pause menu action dispatch -------------------------------------------
+
+    def do_pause_action(name):
+        # Save/Load already log their own status messages, so return "" to
+        # keep use_selected from logging a duplicate. _quit_app never returns.
+        if name == "save":
+            do_save()
+            return ""
+        if name == "load":
+            do_load()
+            return ""
+        if name == "exit":
+            _quit_app()
+        return ""
+
     # -- Inventory ------------------------------------------------------------
 
     # Held-key cursor auto-repeat for panels (matches _stat_allocation timing).
@@ -777,28 +1023,38 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         else:
             _panel_hold["timer"] = 0.0
 
+    # Per-panel config. The cursor + selected-name logic is the same across
+    # every panel (panel_cursor_move / panel_selected_name keyed by the dict
+    # entry's name), so it lives in bind_panel/use_selected rather than here.
+    # ends_turn=True triggers an enemy turn after the action -- inventory and
+    # spell list both consume a turn; the pause menu does not.
     _PANELS = {
         "inventory": dict(
             close_key   = pygame.K_i,
-            cursor_fn   = lambda delta: win.inv_cursor_move(delta),
-            selected_fn = lambda: win.inv_selected_name(),
             action_fn   = lambda name: player.use_item(name, maze),
             refresh_fn  = lambda: win.set_inventory(player),
             log_prefix  = "Used: ",
+            ends_turn   = True,
         ),
         "spell_list": dict(
             close_key   = pygame.K_c,
-            cursor_fn   = lambda delta: win.spell_cursor_move(delta),
-            selected_fn = lambda: win.spell_selected_name(),
             action_fn   = lambda name: player.cast_spell(name, maze),
             refresh_fn  = lambda: win.set_spell_list(player),
             log_prefix  = "",
+            ends_turn   = True,
+        ),
+        "pause": dict(
+            close_key   = pygame.K_ESCAPE,
+            action_fn   = do_pause_action,
+            refresh_fn  = lambda: None,
+            log_prefix  = "",
+            ends_turn   = False,
         ),
     }
 
     def use_selected(panel="inventory"):
         cfg       = _PANELS[panel]
-        item_name = cfg["selected_fn"]().lower()
+        item_name = win.panel_selected_name(panel).lower()
         if not item_name:
             return
         if cfg["log_prefix"]:
@@ -807,10 +1063,17 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         cfg["refresh_fn"]()
         win.set_player_stats(player)
         win.log(action)
-        do_enemy_turn()
+        if cfg["ends_turn"]:
+            do_enemy_turn()
 
     def open_panel(panel="inventory"):
-        player.show_panel(win, panel)
+        # The pause panel has no per-Entity setup (its lines are static), so
+        # toggle it directly. Inventory/spell_list go through Entity.show_panel
+        # which also rebuilds their line data.
+        if panel == "pause":
+            win.pause_show = not win.pause_show
+        else:
+            player.show_panel(win, panel)
         if getattr(win, f"{panel}_show"):
             bind_panel(panel)
         else:
@@ -818,7 +1081,9 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
 
     def bind_panel(panel="inventory"):
         cfg    = _PANELS[panel]
-        cursor = cfg["cursor_fn"]
+        # All panels share the same cursor-move / selection logic, keyed by
+        # the panel name. No more per-panel cursor_fn lambdas.
+        cursor = lambda delta: win.panel_cursor_move(panel, delta)
         win.unbind_all()
         win.bind(pygame.K_UP,       lambda: cursor(-1))
         win.bind(pygame.K_DOWN,     lambda: cursor(1))
@@ -827,7 +1092,7 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         win.bind(pygame.K_RETURN,   lambda: use_selected(panel))
         win.bind(pygame.K_e,        lambda: use_selected(panel))
         win.bind(cfg["close_key"],  lambda: open_panel(panel))
-        # Save/load still works inside panels
+        # Save/load hotkeys still work inside panels
         win.bind(pygame.K_F5,       do_save)
         win.bind(pygame.K_F9,       do_load)
         # Enable held-key cursor auto-repeat for this panel.
@@ -837,6 +1102,7 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
 
     def open_inventory():  open_panel("inventory")
     def open_spell_list(): open_panel("spell_list")
+    def open_pause():      open_panel("pause")
 
     def bind_game():
         win.unbind_all()
@@ -865,6 +1131,7 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         win.bind(pygame.K_e,     pickup)
         win.bind(pygame.K_j,     inspect_cell)
         win.bind(pygame.K_i,     open_inventory)
+        win.bind(pygame.K_ESCAPE, open_pause)
         # Save / Load
         win.bind(pygame.K_F5,    do_save)
         win.bind(pygame.K_F9,    do_load)

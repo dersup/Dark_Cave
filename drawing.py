@@ -60,6 +60,7 @@ class Cell:
 
         self.location      = []
         self.floor_tile    = None   # pygame.Surface set by Maze
+        self.floor_type = ""
         self.visited       = False
         self.enemy_entity  = None
         self.player_entity = None
@@ -85,6 +86,28 @@ class Cell:
         # sprite references (set lazily when entities are assigned)
         self._player_sprite = None
         self._enemy_sprite  = None
+
+    # -----------------------------------------------------------------------
+    # Tile Drawing
+    # -----------------------------------------------------------------------
+    def load_tile(self,name):
+        """Return list of pygame.Surface for current level's floor tiles."""
+        tile_dir = self._maze._tile_dir()
+        tiles = []
+        for f in sorted(tile_dir.iterdir()):
+            if f.suffix.lower() == ".png":
+                if f.name not in self._tile_cache:
+                    img = pygame.image.load(str(f)).convert_alpha()
+                    # Scale to CELL_SIZE if the PNG differs
+                    if img.get_size() != (self.CELL_SIZE, self.CELL_SIZE):
+                        img = pygame.transform.scale(
+                            img, (self.CELL_SIZE, self.CELL_SIZE)
+                        )
+                    self._tile_cache[f.name] = img
+                tiles.append((self._tile_cache[f.name],f.name))
+        if not tiles:
+            raise FileNotFoundError(f"No PNG tiles found in {tile_dir}")
+        return tiles
 
     # -----------------------------------------------------------------------
     # Visibility

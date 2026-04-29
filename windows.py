@@ -28,13 +28,16 @@ FONT_SIZE = {"lg": 22, "md": 16, "sm": 13}
 class Panel:
     """All state for a single scrollable list panel."""
 
-    def __init__(self, title: str, hint: str):
+    def __init__(self, title: str, hint: str, *, show_info_pane: bool = True):
         self.title   = title
         self.hint    = hint
         self.lines   = []   # list of (text, is_header, item_obj | None)
         self.cursor  = 0
         self.visible = False
         self.info = None
+        # If False, _draw_panel skips the right-side item-info pane (used by
+        # the pause menu, where each line is a command, not an inspectable item)
+        self.show_info_pane = show_info_pane
 
 
 
@@ -103,7 +106,15 @@ class Windows:
         self._panels = {
             "inventory":  Panel("INVENTORY  (I to close)", "W/S:navigate  Enter/E:use"),
             "spell_list": Panel("SPELLS  (C to close)",    "W/S:navigate  Enter/E:cast"),
+            "pause":      Panel("PAUSED  (Esc to close)",  "W/S:navigate  Enter/E:select",
+                                show_info_pane=False),
         }
+        # Pause menu is a static command list, populated once at construction.
+        self._panels["pause"].set_lines([
+            ("Save", False, None),
+            ("Load", False, None),
+            ("Exit", False, None),
+        ])
 
         self._keys:      dict = {}
         self._scheduled: list = []
@@ -123,6 +134,11 @@ class Windows:
     def spell_list_show(self):           return self._panels["spell_list"].visible
     @spell_list_show.setter
     def spell_list_show(self, v):        self._panels["spell_list"].visible = v
+
+    @property
+    def pause_show(self):                return self._panels["pause"].visible
+    @pause_show.setter
+    def pause_show(self, v):             self._panels["pause"].visible = v
 
     # -- Camera ----------------------------------------------------------------
 
@@ -206,18 +222,16 @@ class Windows:
     # -- Panel cursor / selection ----------------------------------------------
 
     def panel_cursor_move(self, panel_key: str, delta: int):
-        text = self._panels[panel_key].move_cursor(delta)
-        if text is not None:
+        panel = self._panels[panel_key]
+        text  = panel.move_cursor(delta)
+        # Only panels with a right-side info pane care about _info_str. The
+        # pause menu sets show_info_pane=False, so don't pollute the shared
+        # info string with command names like "Save"/"Load"/"Exit".
+        if text is not None and panel.show_info_pane:
             self._info_str = text
 
     def panel_selected_name(self, panel_key: str) -> str:
         return self._panels[panel_key].selected_name()
-
-    # Legacy shims
-    def inv_cursor_move(self, delta):   self.panel_cursor_move("inventory",  delta)
-    def spell_cursor_move(self, delta): self.panel_cursor_move("spell_list", delta)
-    def inv_selected_name(self):        return self.panel_selected_name("inventory")
-    def spell_selected_name(self):      return self.panel_selected_name("spell_list")
 
     # -- Level-up screen (blocking sub-loop) -----------------------------------
 
@@ -279,6 +293,7 @@ class Windows:
         self.unbind_all()
         self.bind(pygame.K_y, on_retry)
         self.bind(pygame.K_n, on_quit)
+        self.bind(pygame.K_ESCAPE, on_quit)
 
 
     def show_win(self, player, maze, on_retry, on_quit):
@@ -289,11 +304,17 @@ class Windows:
         self.unbind_all()
         self.bind(pygame.K_y, on_retry)
         self.bind(pygame.K_n, on_quit)
+        self.bind(pygame.K_ESCAPE, on_quit)
 
     # -- Render pass -----------------------------------------------------------
 
     def render(self):
         self._draw_hud()
+        # Dim the game world behind the pause menu so it reads as modal.
+        if self._panels["pause"].visible:
+            dim = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
+            dim.fill((0, 0, 0, 140))
+            self.surface.blit(dim, (0, 0))
         for panel in self._panels.values():
             if panel.visible:
                 self._draw_panel(panel)
@@ -476,7 +497,11 @@ class Windows:
             y += 20
 
         cur_item = panel.selected_item()
-        if cur_item is not None:
+        if not panel.show_info_pane:
+            # Pause menu (and any future command-list panels) skip the right pane.
+            item_title = None
+            rows = []
+        elif cur_item is not None:
             item_title = cur_item.name
             rows = self._build_item_rows(cur_item, pw - 24)
         elif self._info_str:
@@ -557,8 +582,8 @@ class Windows:
                 self._screen = pygame.display.set_mode((self.w, self.h), pygame.RESIZABLE)
                 self.surface = self._screen
             if ev.type == pygame.KEYDOWN:
-                if ev.key == pygame.K_ESCAPE:
-                    return False
+                # ESC is no longer hard-wired to quit; the game binds it to
+                # open the pause menu, and the pause menu binds it to close.
                 key = ("shift", ev.key) if shift else ev.key
                 cb  = self._keys.get(key)
                 if cb:

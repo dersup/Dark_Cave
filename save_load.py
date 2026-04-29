@@ -341,6 +341,8 @@ def _ser_maze(maze) -> dict:
                 "exit":   cell.exit,
                 "gold":   cell.gold,
                 "inventory": _ser_inventory(cell.inventory),
+                "visited": cell.visited,
+                "floor": cell.floor_type,
             }
             row_data.append(cell_d)
 
@@ -373,6 +375,10 @@ def _de_maze_into(maze, maze_data: dict):
             cell.exit   = cd.get("exit", False)
             cell.gold   = cd.get("gold", 0)
             cell.inventory = _de_inventory(cd["inventory"])
+            cell.visited = cd.get("visited", False)
+            cell.floor_type = cd.get("floor", "")
+            if cell.floor_type:
+                maze._load_tile(cell,cell.floor_type)
 
     # Re-place enemies
     for edata in maze_data.get("enemies", []):
