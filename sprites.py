@@ -115,7 +115,7 @@ _SL = "assets/Slimes"
 MOB_SPRITE_DB: dict[str, dict[str, tuple]] = {
 
     # -- Player (Base Human) ---------------------------------------------------
-    "player": _humanoid_sheets(f"{_BH}/Human/Base_Human", "Human",
+    "player": _humanoid_sheets(f"{_BH}/Human/Human_Townsfolk", "HumanTownsfolk",
                                die_key="SpinDie", die_frames=12),
 
     # -- Goblin ----------------------------------------------------------------
