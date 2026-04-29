@@ -123,7 +123,7 @@ class Entity:
 			if hasattr(dead, '_sprite') and dead._sprite is not None:
 				dead._sprite.set_state("die", one_shot=True)
 			maze.cells[dy][dx].remove_enemy()
-			return f"{dead_name} has been slain"
+			return f" {dead_name} has been slain"
 
 		# Trigger attack animation on the attacker
 		if hasattr(self, '_sprite') and self._sprite is not None:

@@ -96,7 +96,6 @@ class Windows:
         self._hp_str    = "HP: 0/0"
         self._mp_str    = "MP: 0/0"
         self._gold_str  = "Gold: 0"
-        self._info_str  = ""
         self._game_over = False
         self._go_text   = ""
         self._log       = []
@@ -191,14 +190,6 @@ class Windows:
 
     # -- Panel population ------------------------------------------------------
 
-    def _build_lines(self, text: str, headers: set) -> list:
-        """Used by spell_list (no item objects needed there)."""
-        return [
-            (s, s in headers, None)
-            for line in text.split("\n")
-            if (s := line.strip().strip("[").strip("]")) and s != "-------------"
-        ]
-
     def set_inventory(self, player):
         """Build inventory lines as (display_text, is_header, item_obj | None)."""
         lines = []
@@ -215,20 +206,18 @@ class Windows:
         self._panels["inventory"].set_lines(lines)
 
     def set_spell_list(self, player):
-        self._panels["spell_list"].set_lines(
-            self._build_lines("\n".join(list(player.get_spells().keys())), {"SPELLS"})
-        )
+        # Store the Magic object on each line (third tuple element), mirroring
+        # set_inventory. This lets _draw_panel hand the spell to
+        # _build_item_rows, which already knows how to render MP cost, cast
+        # range, elements, and the spell description.
+        lines = [(name, False, spell)
+                 for name, spell in player.get_spells().items()]
+        self._panels["spell_list"].set_lines(lines)
 
     # -- Panel cursor / selection ----------------------------------------------
 
     def panel_cursor_move(self, panel_key: str, delta: int):
-        panel = self._panels[panel_key]
-        text  = panel.move_cursor(delta)
-        # Only panels with a right-side info pane care about _info_str. The
-        # pause menu sets show_info_pane=False, so don't pollute the shared
-        # info string with command names like "Save"/"Load"/"Exit".
-        if text is not None and panel.show_info_pane:
-            self._info_str = text
+        self._panels[panel_key].move_cursor(delta)
 
     def panel_selected_name(self, panel_key: str) -> str:
         return self._panels[panel_key].selected_name()
@@ -504,10 +493,13 @@ class Windows:
         elif cur_item is not None:
             item_title = cur_item.name
             rows = self._build_item_rows(cur_item, pw - 24)
-        elif self._info_str:
-            # Spell list fallback: no item object, show name only
-            item_title = self._info_str.split("(")[0].strip()
-            rows = [{"kind": "text", "text": item_title, "col": TEXT}]
+        elif panel.lines:
+            # No item object on this row (e.g. spell list): drive the title
+            # straight from the panel's cursor so it's correct on first open,
+            # not just after the user has pressed W/S.
+            name = panel.selected_name()
+            item_title = name or None
+            rows = [{"kind": "text", "text": name, "col": TEXT}] if name else []
         else:
             item_title = None
             rows = []
