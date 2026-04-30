@@ -105,6 +105,7 @@ class Entity:
 		return total
 
 	def attack_target(self, enemy, weapon_, maze):
+		crit = True if random.randint(1, 20) + max(1,self.stats["agility"]//3) >= 20 else False
 		if not weapon_:
 			return "You have no weapon."
 
@@ -140,9 +141,9 @@ class Entity:
 			roll += int(self.stats["attack"])
 			attack_total = roll + self.weapon.attack
 			e_defence = int(enemy.stats["defence"])
-		dam_taken = enemy.take_damage(weapon_.elements)
+		dam_taken = enemy.take_damage(weapon_.elements,mod=2 if crit else 1)
 		if isinstance(weapon_, Throwing) and "bomb" in weapon_.name:
-			dam_taken = enemy.take_damage(weapon_.elements) if roll > 10 \
+			dam_taken = enemy.take_damage(weapon_.elements,mod=2 if crit else 1) if roll > 10 \
 				else enemy.take_damage(weapon_.elements, 0.5)
 		elif attack_total < 10 + e_defence:
 			return f"{self.name} misses {enemy.name}."
@@ -193,6 +194,19 @@ class Entity:
 		except ValueError:
 			return "item not in inventory"
 		return f"{item_} removed"
+
+	def drop_item(self, item_, cell):
+		"""Move `item_` out of this entity's inventory and onto `cell`'s
+		floor inventory so it can be picked up later. Mirrors the dict shape
+		used by Inventory / get_cell_inventory.
+		"""
+		key = self._category(item_)
+		try:
+			self.inventory.items[key].remove(item_)
+		except ValueError:
+			return "item not in inventory"
+		cell.inventory.items[key].append(item_)
+		return f"{item_.name} dropped"
 
 	def remove_inventory(self):
 		self.inventory = Inventory()

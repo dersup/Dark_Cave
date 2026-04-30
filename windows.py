@@ -103,7 +103,7 @@ class Windows:
 
         # All panels live here; adding a new one is one line.
         self._panels = {
-            "inventory":  Panel("INVENTORY  (I to close)", "W/S:navigate  Enter/E:use"),
+            "inventory":  Panel("INVENTORY  (I to close)", "W/S:navigate  Enter/E:use  d:drop"),
             "spell_list": Panel("SPELLS  (C to close)",    "W/S:navigate  Enter/E:cast"),
             "pause":      Panel("PAUSED  (Esc to close)",  "W/S:navigate  Enter/E:select",
                                 show_info_pane=False),
@@ -221,6 +221,11 @@ class Windows:
 
     def panel_selected_name(self, panel_key: str) -> str:
         return self._panels[panel_key].selected_name()
+
+    def panel_selected_item(self, panel_key: str):
+        """Return the Item object at the panel's cursor, or None for headers
+        / panels that don't store items (spell list, pause menu)."""
+        return self._panels[panel_key].selected_item()
 
     # -- Level-up screen (blocking sub-loop) -----------------------------------
 

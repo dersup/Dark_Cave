@@ -895,7 +895,7 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
     def do_enemy_turn():
         def _retry():
             win._restart_request = ("retry", None, None)
-            win.show_game_over(player, maze, on_retry=_retry, on_quit=_quit)
+            win.show_game_over(player, maze, on_retry=_retry, on_quit=_to_menu)
         py,px = player.location.location
         nonlocal alive
         for row in maze.cells:
@@ -920,11 +920,17 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
             win.show_game_over(
                 player, maze,
                 on_retry=_retry,
-                on_quit=_quit
+                on_quit=_to_menu
             )
 
     def _quit():
         _quit_app()
+
+    def _to_menu():
+        # "N" on the game-over screen: don't close the app, return to the
+        # start menu. Reuse the "retry" restart kind (player=None, maze=None)
+        # so main() re-enters and falls through to the start_menu loop.
+        win._restart_request = ("retry", None, None)
 
     def move(direction):
         nonlocal busy
@@ -1032,8 +1038,10 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         "inventory": dict(
             close_key   = pygame.K_i,
             action_fn   = lambda name: player.use_item(name, maze),
+            drop_fn     = lambda item: player.drop_item(item, player.location),
             refresh_fn  = lambda: win.set_inventory(player),
             log_prefix  = "Used: ",
+            drop_prefix = "Dropped: ",
             ends_turn   = True,
         ),
         "spell_list": dict(
@@ -1052,19 +1060,48 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         ),
     }
 
-    def use_selected(panel="inventory"):
-        cfg       = _PANELS[panel]
-        item_name = win.panel_selected_name(panel).lower()
-        if not item_name:
+    def _do_panel_action(panel, fn_key, prefix_key, by="name"):
+        """Shared dispatcher for panel actions (use, drop, ...).
+
+        Looks up the action callable under `fn_key` in the panel's config; if
+        the panel doesn't define one (e.g. spell_list has no drop_fn), this is
+        a silent no-op so a stray keypress can't crash anything.
+
+        `by` controls what gets passed to the callable:
+          - "name": the lowercased line label (use_item style; tolerates "3x"
+            stack prefixes since use_item strips them).
+          - "item": the actual Item object at the cursor (required by methods
+            like drop_item / remove_item that match objects, not strings).
+        """
+        cfg = _PANELS[panel]
+        fn  = cfg.get(fn_key)
+        if fn is None:
             return
-        if cfg["log_prefix"]:
-            win.log(f"{cfg['log_prefix']}{item_name}")
-        action = cfg["action_fn"](item_name)
+        label = win.panel_selected_name(panel)
+        if not label:
+            return
+        if by == "item":
+            arg = win.panel_selected_item(panel)
+            if arg is None:
+                # Cursor is on a header row, or this panel doesn't carry items.
+                return
+        else:
+            arg = label.lower()
+        prefix = cfg.get(prefix_key, "")
+        if prefix:
+            win.log(f"{prefix}{label}")
+        result = fn(arg)
         cfg["refresh_fn"]()
         win.set_player_stats(player)
-        win.log(action)
+        win.log(result)
         if cfg["ends_turn"]:
             do_enemy_turn()
+
+    def use_selected(panel="inventory"):
+        _do_panel_action(panel, "action_fn", "log_prefix")
+
+    def drop_selected(panel="inventory"):
+        _do_panel_action(panel, "drop_fn", "drop_prefix", by="item")
 
     def open_panel(panel="inventory"):
         # The pause panel has no per-Entity setup (its lines are static), so
@@ -1089,6 +1126,7 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         win.bind(pygame.K_DOWN,     lambda: cursor(1))
         win.bind(pygame.K_w,        lambda: cursor(-1))
         win.bind(pygame.K_s,        lambda: cursor(1))
+        win.bind(pygame.K_d,        lambda: drop_selected(panel))
         win.bind(pygame.K_RETURN,   lambda: use_selected(panel))
         win.bind(pygame.K_e,        lambda: use_selected(panel))
         win.bind(cfg["close_key"],  lambda: open_panel(panel))
