@@ -100,8 +100,7 @@ class Entity:
 			)
 			total[element.type] = damage
 			self.health -= damage
-			if self.health <= 0:
-				break
+
 		return total
 
 	def attack_target(self, enemy, weapon_, maze):
@@ -163,7 +162,7 @@ class Entity:
 			message += f"{dam} {ele}"
 		message += " damage"
 
-		return _killed(self, enemy) if enemy.health <= 0 else message
+		return message + " " + _killed(self, enemy) if enemy.health <= 0 else message
 
 	def get_equipped_staff(self):
 		return next((i for i in self.inventory.items["Equipped"] if isinstance(i, Staff)), None)
