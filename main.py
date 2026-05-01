@@ -594,7 +594,7 @@ _HERO_BUTTONS = (
     ("Start",   408/640,   216/480,   183/640,   50/480),
     ("Load",    407/640,   281/480,   183/640,   50/480),
     ("Options", 408/640,   348/480,   183/640,   50/480),
-    ("Exit",    408/640,   413/480,   183/640,   50/480),
+    ("Exit",    409/640,   413/480,   183/640,   50/480),
 )
 
 # Cache: (window_w, window_h) -> scaled background Surface (or None on failure)
@@ -714,7 +714,7 @@ async def start_menu(win: Windows) -> tuple:
                 hover = r.collidepoint(mp)
                 col   = COLOURS["purple"] if hover else COLOURS["red"]
                 pygame.draw.rect(win.surface, col, r, width=2, border_radius=4)
-                win.txt(label, r.centerx, r.centery, "md", col, center=True)
+                win.txt(label, r.centerx, r.centery-10, "md", col, center=True)
 
             win.clock.tick(30)
             pygame.display.flip()
@@ -1036,7 +1036,7 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
     # spell list both consume a turn; the pause menu does not.
     _PANELS = {
         "inventory": dict(
-            close_key   = pygame.K_i,
+            close_key   = (pygame.K_i,pygame.K_ESCAPE),
             action_fn   = lambda name: player.use_item(name, maze),
             drop_fn     = lambda item: player.drop_item(item, player.location),
             refresh_fn  = lambda: win.set_inventory(player),
@@ -1045,7 +1045,7 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
             ends_turn   = True,
         ),
         "spell_list": dict(
-            close_key   = pygame.K_c,
+            close_key   = (pygame.K_c,pygame.K_ESCAPE),
             action_fn   = lambda name: player.cast_spell(name, maze),
             refresh_fn  = lambda: win.set_spell_list(player),
             log_prefix  = "",
@@ -1129,10 +1129,20 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         win.bind(pygame.K_d,        lambda: drop_selected(panel))
         win.bind(pygame.K_RETURN,   lambda: use_selected(panel))
         win.bind(pygame.K_e,        lambda: use_selected(panel))
-        win.bind(cfg["close_key"],  lambda: open_panel(panel))
+        win.bind_keys(cfg["close_key"],  lambda: open_panel(panel))
         # Save/load hotkeys still work inside panels
         win.bind(pygame.K_F5,       do_save)
         win.bind(pygame.K_F9,       do_load)
+        # Mouse hooks for the active panel. Right-click drop is wired up only
+        # when the panel actually defines drop_fn (inventory does, spell_list
+        # and pause don't), so right-clicking a spell or a pause command is a
+        # no-op rather than firing a stale handler.
+        win.bind_panel_actions(
+            panel,
+            use   = lambda: use_selected(panel),
+            drop  = (lambda: drop_selected(panel)) if "drop_fn" in cfg else None,
+            close = lambda: open_panel(panel),
+        )
         # Enable held-key cursor auto-repeat for this panel.
         _panel_hold["cursor_fn"] = cursor
         _panel_hold["timer"]     = 0.0

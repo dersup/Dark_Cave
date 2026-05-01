@@ -39,11 +39,37 @@ class Panel:
         # the pause menu, where each line is a command, not an inspectable item)
         self.show_info_pane = show_info_pane
 
+        # -- Scrolling --------------------------------------------------------
+        # `scroll`  = index of the first line currently rendered.
+        # `_visible_count` is recomputed every draw based on panel height,
+        # then used by _ensure_cursor_visible / _clamp_scroll. Keyboard nav
+        # adjusts scroll automatically; mouse wheel adjusts it directly.
+        self.scroll          = 0
+        self._visible_count  = 0
+
+        # -- Layout cached during draw, used by mouse hit-testing -------------
+        # row_rects: [(pygame.Rect, line_index), ...] for currently-drawn rows.
+        # All four reset to empty / None at the top of _draw_panel.
+        self.row_rects       = []
+        self.close_rect      = None
+        self.track_rect      = None
+        self.thumb_rect      = None
+
+        # Active scrollbar drag: pixel offset between mouse-y and thumb-top
+        # when the drag started. None when not dragging.
+        self._drag_offset    = None
 
 
     def set_lines(self, lines: list):
         self.lines  = lines
         self.cursor = 0
+        self.scroll = 0
+        # Old layout is now stale; clear it so any in-flight mouse events
+        # processed before the next draw don't hit phantom rows.
+        self.row_rects  = []
+        self.close_rect = None
+        self.track_rect = None
+        self.thumb_rect = None
 
     def move_cursor(self, delta: int):
         n = len(self.lines)
@@ -55,7 +81,30 @@ class Panel:
             new += delta
         if 0 <= new < n:
             self.cursor = new
+        self._ensure_cursor_visible()
         return self.lines[self.cursor][0]
+
+    # -- Scroll helpers --------------------------------------------------------
+
+    def _ensure_cursor_visible(self):
+        """Adjust scroll so the cursor row sits inside the visible window."""
+        if self._visible_count <= 0:
+            return
+        if self.cursor < self.scroll:
+            self.scroll = self.cursor
+        elif self.cursor >= self.scroll + self._visible_count:
+            self.scroll = self.cursor - self._visible_count + 1
+        self._clamp_scroll()
+
+    def _clamp_scroll(self):
+        max_scroll = max(0, len(self.lines) - max(1, self._visible_count))
+        self.scroll = max(0, min(self.scroll, max_scroll))
+
+    def scroll_by(self, delta_lines: int):
+        """Scroll the view by N lines without moving the cursor (used by the
+        mouse wheel and scrollbar arrows / paging)."""
+        self.scroll += delta_lines
+        self._clamp_scroll()
 
     def selected_item(self):
         """Return the item object at the cursor, or None for headers/spells."""
@@ -103,9 +152,12 @@ class Windows:
 
         # All panels live here; adding a new one is one line.
         self._panels = {
-            "inventory":  Panel("INVENTORY  (I to close)", "W/S:navigate  Enter/E:use  d:drop"),
-            "spell_list": Panel("SPELLS  (C to close)",    "W/S:navigate  Enter/E:cast"),
-            "pause":      Panel("PAUSED  (Esc to close)",  "W/S:navigate  Enter/E:select",
+            "inventory":  Panel("INVENTORY  (I to close)",
+                                "WS/Hover  Enter/Click:use  D/RClick:drop"),
+            "spell_list": Panel("SPELLS  (C to close)",
+                                "WS/Hover  Enter/Click:cast"),
+            "pause":      Panel("PAUSED  (Esc to close)",
+                                "WS/Hover  Enter/Click:select",
                                 show_info_pane=False),
         }
         # Pause menu is a static command list, populated once at construction.
@@ -116,6 +168,10 @@ class Windows:
         ])
 
         self._keys:      dict = {}
+        # Mouse callbacks per panel: {panel_key: {"use", "drop", "close"}}.
+        # main.py registers these via bind_panel_actions when a panel opens;
+        # _dispatch_panel_mouse looks them up to fire the matching game action.
+        self._panel_actions: dict = {}
         self._scheduled: list = []
         self.animating_cells: list = []
         self._ui_blocked = False
@@ -149,10 +205,28 @@ class Windows:
         self._camera_y = self.h / 2 - y
 
     # -- Key bindings ----------------------------------------------------------
-
     def bind(self, key, callback):    self._keys[key] = callback
+    def bind_keys(self,keys:tuple,callback):
+        if isinstance(keys, tuple):
+            for key in keys: self.bind(key,callback)
+        else:
+            self.bind(keys,callback)
     def unbind(self, key):            self._keys.pop(key, None)
     def unbind_all(self):             self._keys.clear()
+
+    # -- Panel mouse-action bindings ------------------------------------------
+    # Mirrors bind/unbind for keyboard, but for the per-panel mouse dispatcher.
+    # `use`  fires on left-click of a row (or close/scroll-track miss-fall-through)
+    # `drop` fires on right-click of a row (set to None to disable, e.g. spells)
+    # `close` fires on click of the panel's X button.
+    def bind_panel_actions(self, panel_key, *, use=None, drop=None, close=None):
+        self._panel_actions[panel_key] = {"use": use, "drop": drop, "close": close}
+
+    def unbind_panel_actions(self, panel_key=None):
+        if panel_key is None:
+            self._panel_actions.clear()
+        else:
+            self._panel_actions.pop(panel_key, None)
 
     # -- Scheduling ------------------------------------------------------------
 
@@ -330,8 +404,8 @@ class Windows:
         self.txt(self._gold_str,  16, self.h - 28, "md", GOLD)
         hint = "WASD/Arrows:Move  Shift+dir:Face  E:Pick up  I:Inventory C:Cast"
         save_hint = "SAVE F5 / LOAD F9"
-        self.txt(hint, self.w - 10 - self.font["sm"].size(hint)[0],
-                 self.h - 20, "sm", TEXT)
+        self.txt(hint, self.w - 10 - self.font["md"].size(hint)[0],
+                 self.h - 20, "md", TEXT)
         self.txt(save_hint, self.w - 10 - self.font["sm"].size(save_hint)[0],
                  10, "sm", TEXT)
 
@@ -466,8 +540,29 @@ class Windows:
         """Single method draws any panel -- inventory and spell list both use this."""
         pw = 300
         ph = min(self.h - 120, len(panel.lines) * 20 + 80)
-        px = (self.w - pw) // 2
+        px = (self.w - pw) // 1.5
         py = 50
+
+        # Reset cached layout -- _dispatch_panel_mouse iterates these, so any
+        # stale entries from a previous frame would mis-route hits.
+        panel.row_rects  = []
+        panel.close_rect = None
+        panel.track_rect = None
+        panel.thumb_rect = None
+
+        # Geometry of the scrollable list area (between title divider and hint)
+        list_top    = py + 36
+        list_bottom = py + ph - 4
+        avail_h     = max(0, list_bottom - list_top)
+        # How many 20px rows fit in the viewport this frame.
+        panel._visible_count = max(1, avail_h // 20)
+        panel._clamp_scroll()
+
+        needs_scrollbar = len(panel.lines) > panel._visible_count
+        # Reserve a 14px gutter for the scrollbar so highlights / row hit
+        # rects don't sit underneath it.
+        sb_gutter   = 14 if needs_scrollbar else 0
+        list_right  = px + pw - sb_gutter
 
         surf = pygame.Surface((pw, ph), pygame.SRCALPHA)
         surf.fill(PANEL)
@@ -476,20 +571,71 @@ class Windows:
         self.txt(panel.title, px + 10, py + 8, "md", LEVEL_COL)
         pygame.draw.line(self.surface, BORDER, (px, py + 30), (px + pw, py + 30), 1)
 
-        y = py + 36
-        for i, entry in enumerate(panel.lines):
-            text, is_hdr = entry[0], entry[1]
-            if y > py + ph - 24:
-                break
+        # -- Close button (X) in the top-right of the title bar ---------------
+        mp = pygame.mouse.get_pos()
+        close_size = 20
+        cx = px + pw - close_size - 4
+        cy = py + 4
+        panel.close_rect = pygame.Rect(cx, cy, close_size, close_size)
+        close_hover = panel.close_rect.collidepoint(mp)
+        close_col = HP_COL if close_hover else MUTED
+        pygame.draw.rect(self.surface, close_col, panel.close_rect,
+                         width=1, border_radius=3)
+        # Draw the X as two crossed lines (cleaner than a glyph at this size)
+        pad = 5
+        pygame.draw.line(self.surface, close_col,
+                         (cx + pad, cy + pad),
+                         (cx + close_size - pad, cy + close_size - pad), 2)
+        pygame.draw.line(self.surface, close_col,
+                         (cx + close_size - pad, cy + pad),
+                         (cx + pad, cy + close_size - pad), 2)
+
+        # -- Scrollable list of lines -----------------------------------------
+        start = panel.scroll
+        end   = min(len(panel.lines), start + panel._visible_count)
+        y = list_top
+        for i in range(start, end):
+            text, is_hdr = panel.lines[i][0], panel.lines[i][1]
+            # Row hit-test rect spans the full visible row width (minus the
+            # scrollbar gutter). Stored so _dispatch_panel_mouse can map a
+            # click position back to a line index.
+            row_rect = pygame.Rect(px + 2, y - 1,
+                                   list_right - (px + 2) - 2, 20)
+            panel.row_rects.append((row_rect, i))
+
             if is_hdr:
                 self.txt(text, px + 10, y, "sm", GOLD)
             elif i == panel.cursor:
-                pygame.draw.rect(self.surface, HIGHLIGHT_BG, (px + 2, y - 1, pw - 4, 18))
+                pygame.draw.rect(self.surface, HIGHLIGHT_BG,
+                                 (px + 2, y - 1,
+                                  list_right - (px + 2) - 2, 18))
                 self.txt(text, px + 10, y, "sm", HIGHLIGHT_FG)
             else:
                 self.txt(text, px + 10, y, "sm", TEXT)
             y += 20
 
+        # -- Scrollbar (only when content overflows) --------------------------
+        if needs_scrollbar:
+            track_x = px + pw - 11
+            track_y = list_top
+            track_w = 7
+            track_h = avail_h
+            panel.track_rect = pygame.Rect(track_x, track_y, track_w, track_h)
+            pygame.draw.rect(self.surface, (40, 35, 50),
+                             panel.track_rect, border_radius=3)
+            # Thumb height is proportional to fraction visible; min size keeps
+            # it grabbable for very long lists.
+            thumb_h = max(20, int(track_h * panel._visible_count / len(panel.lines)))
+            max_scroll = max(1, len(panel.lines) - panel._visible_count)
+            thumb_y = track_y + int((track_h - thumb_h) * panel.scroll / max_scroll)
+            panel.thumb_rect = pygame.Rect(track_x, thumb_y, track_w, thumb_h)
+            thumb_hover = (panel.thumb_rect.collidepoint(mp)
+                           or panel._drag_offset is not None)
+            thumb_col = HIGHLIGHT_FG if thumb_hover else BORDER
+            pygame.draw.rect(self.surface, thumb_col,
+                             panel.thumb_rect, border_radius=3)
+
+        # -- Right-side info pane (unchanged behavior) ------------------------
         cur_item = panel.selected_item()
         if not panel.show_info_pane:
             # Pause menu (and any future command-list panels) skip the right pane.
@@ -540,7 +686,7 @@ class Windows:
 
 
 
-        self.txt(panel.hint, px + 4, py + ph + 4, "sm", MUTED)
+        self.txt(panel.hint, px + 4, py + ph + 4, "sm", TEXT)
 
     def _draw_log(self):
         now  = time.time()
@@ -571,6 +717,15 @@ class Windows:
         self._fire_scheduled()
         shift = bool(pygame.key.get_mods() & pygame.KMOD_SHIFT)
 
+        # Find the visible panel for mouse routing. Only one panel is open
+        # at a time per the state machine in main.py, but if that ever
+        # changes the first-found wins (matches dict iteration order).
+        active_panel_key = None
+        for k, p in self._panels.items():
+            if p.visible:
+                active_panel_key = k
+                break
+
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
                 return False
@@ -585,7 +740,99 @@ class Windows:
                 cb  = self._keys.get(key)
                 if cb:
                     cb()
+            # Mouse events route to whichever panel is open, if any.
+            if active_panel_key is not None and ev.type in (
+                pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN,
+                pygame.MOUSEBUTTONUP, pygame.MOUSEWHEEL,
+            ):
+                self._dispatch_panel_mouse(active_panel_key, ev)
         return True
+
+    def _dispatch_panel_mouse(self, panel_key: str, ev):
+        """Route a single mouse event to the panel identified by `panel_key`.
+
+        Order of precedence on a left click:
+          1. Close button (X)
+          2. Scrollbar thumb -> begin drag (handled in MOUSEMOTION too)
+          3. Scrollbar track  -> page up / page down toward the click
+          4. List row         -> set cursor to that row + fire `use` action
+        Right click on a row fires `drop` if the panel registered one.
+        Mouse wheel scrolls the list (3 lines per notch) without moving the
+        cursor -- it's a viewport-only operation.
+        """
+        panel   = self._panels[panel_key]
+        actions = self._panel_actions.get(panel_key, {})
+
+        if ev.type == pygame.MOUSEMOTION:
+            # If a thumb-drag is in progress, route motion straight to scroll.
+            if panel._drag_offset is not None and panel.track_rect and panel.thumb_rect:
+                track    = panel.track_rect
+                thumb_h  = panel.thumb_rect.height
+                avail    = max(1, track.height - thumb_h)
+                rel_y    = ev.pos[1] - track.y - panel._drag_offset
+                ratio    = max(0.0, min(1.0, rel_y / avail))
+                max_scr  = max(0, len(panel.lines) - panel._visible_count)
+                panel.scroll = int(round(ratio * max_scr))
+                panel._clamp_scroll()
+                return
+            # Otherwise: hover -> move cursor to the hovered row (skip headers).
+            for rect, line_idx in panel.row_rects:
+                if rect.collidepoint(ev.pos):
+                    if 0 <= line_idx < len(panel.lines) and not panel.lines[line_idx][1]:
+                        panel.cursor = line_idx
+                    break
+            return
+
+        if ev.type == pygame.MOUSEBUTTONUP:
+            # Always release the drag, regardless of which button -- this
+            # avoids a "stuck" thumb if the user right-clicks mid-drag.
+            panel._drag_offset = None
+            return
+
+        if ev.type == pygame.MOUSEWHEEL:
+            # Wheel up (ev.y > 0) -> show content above -> scroll value down.
+            panel.scroll_by(-ev.y * 3)
+            return
+
+        if ev.type == pygame.MOUSEBUTTONDOWN:
+            if ev.button == 1:
+                # 1) Close (X)
+                if panel.close_rect and panel.close_rect.collidepoint(ev.pos):
+                    cb = actions.get("close")
+                    if cb:
+                        cb()
+                    return
+                # 2) Thumb -> start drag
+                if panel.thumb_rect and panel.thumb_rect.collidepoint(ev.pos):
+                    panel._drag_offset = ev.pos[1] - panel.thumb_rect.y
+                    return
+                # 3) Track (above/below thumb) -> page scroll toward click
+                if panel.track_rect and panel.track_rect.collidepoint(ev.pos):
+                    if panel.thumb_rect and ev.pos[1] < panel.thumb_rect.y:
+                        panel.scroll_by(-panel._visible_count)
+                    else:
+                        panel.scroll_by(panel._visible_count)
+                    return
+                # 4) Row -> select + use
+                for rect, line_idx in panel.row_rects:
+                    if rect.collidepoint(ev.pos):
+                        if 0 <= line_idx < len(panel.lines) and not panel.lines[line_idx][1]:
+                            panel.cursor = line_idx
+                            cb = actions.get("use")
+                            if cb:
+                                cb()
+                        return
+            elif ev.button == 3:
+                # Right click -> drop (only if the panel registered a drop_fn)
+                drop_fn = actions.get("drop")
+                if drop_fn is None:
+                    return
+                for rect, line_idx in panel.row_rects:
+                    if rect.collidepoint(ev.pos):
+                        if 0 <= line_idx < len(panel.lines) and not panel.lines[line_idx][1]:
+                            panel.cursor = line_idx
+                            drop_fn()
+                        return
 
     def flip(self):
         pygame.display.flip()
