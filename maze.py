@@ -8,6 +8,7 @@ from pathlib import Path
 from drawing import Cell, Point
 from entity import Entity
 from generator_ import generate_enemy
+from shop import show_shop
 def _quit_app():
     """Clean shutdown that works on desktop and in pygbag."""
     if sys.platform == "emscripten":
@@ -264,7 +265,19 @@ class Maze:
             self._win.show_win(player,self,on_retry=_retry,on_quit=_quit_app())
         self._win.set_player_stats(player)
         self._win._ui_blocked = True
+        prev_level = self.level
         self.level += 1
+        # Between-level shop: skip after winning the final floor (the win
+        # screen already owns the next frame). For floors 1->2 ... 9->10
+        # we reflect the new level in the HUD before opening the shop so
+        # the title reads correctly.
+        if prev_level < 10:
+            self._win.set_level(self.level)
+            await show_shop(self._win, player, self.level)
+            # show_shop releases _ui_blocked on exit; re-acquire while we
+            # finish rebuilding the maze so the main loop doesn't draw a
+            # half-built world.
+            self._win._ui_blocked = True
         self.cells = []
         self.visible_cells = set()
         # Yield between heavy phases so the browser frame pump can run.

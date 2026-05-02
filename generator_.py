@@ -15,13 +15,24 @@ def weighted_choice(weighted_dict):
 
 
 def generate_weapon_loot(mob_type,weapon_name=""):
+    # Mobs with natural weapons (slimes, yeti, troll, pumpkin horror) skip the
+    # rarity/quality pipeline — their weapon is anatomy, not loot.
+    # An explicit weapon_name override still routes through the normal path.
+    if not weapon_name and mob_type in MOB_NATURAL_WEAPONS:
+        nat_key = MOB_NATURAL_WEAPONS[mob_type]
+        nat = copy.deepcopy(BASE_MOB_WEAPONS[nat_key])
+        damage = nat["damage"] if isinstance(nat["damage"], list) else [nat["damage"]]
+        return Weapon(nat_key, nat["value"], nat["attack"], damage,
+                      description=nat["description"])
+
     if mob_type == "player":
         rarity = ""
     else:
         rarity = weighted_choice(RARITY)
-    base_name = weighted_choice(MOB_WEAPON_PREFERENCES[mob_type])
     if weapon_name:
         base_name = weapon_name
+    else:
+        base_name = weighted_choice(MOB_WEAPON_PREFERENCES[mob_type])
     quality_name = weighted_choice(QUALITY_WEIGHT[mob_type]["weapon"])
 
     base = copy.deepcopy(BASE_WEAPONS[base_name])
@@ -34,7 +45,7 @@ def generate_weapon_loot(mob_type,weapon_name=""):
     if rarity:
         choice = {}
         choice_name = ""
-        for i in range(RARITY_BONUS[rarity]):
+        for i in range(RARE_LOOT_ROLLS[rarity]):
             if rarity in ["rare","epic","legendary"] and not choice in list(ITEM_MODIFIERS["weapons"]["double"]):
                 if random.uniform(0, 1) > 0.2:
                     choice = random.choice(list(ITEM_MODIFIERS["weapons"]["single"]))
@@ -121,7 +132,7 @@ def generate_staff(mob_type, staff_name=""):
     if rarity:
         choice = {}
         choice_name = ""
-        for i in range(RARITY_BONUS[rarity]):
+        for i in range(RARE_LOOT_ROLLS[rarity]):
             if rarity in ["rare", "epic", "legendary"] and not choice in list(ITEM_MODIFIERS["weapons"]["double"]):
                 if random.uniform(0, 1) > 0.2:
                     choice = random.choice(list(ITEM_MODIFIERS["weapons"]["single"]))
@@ -223,6 +234,16 @@ def generate_staff(mob_type, staff_name=""):
 
 
 def generate_armor_loot(mob_type,):
+    # Monstrous creatures (slimes, yeti, troll, pumpkin horror) have natural
+    # armor — hide / ooze / rind. Bypass rarity/quality entirely; anatomy isn't loot.
+    if mob_type in MOB_NATURAL_ARMOR:
+        nat_key = MOB_NATURAL_ARMOR[mob_type]
+        nat = copy.deepcopy(BASE_MOB_ARMOR[nat_key])
+        armour = Armour(nat_key, nat["value"], description=nat["description"])
+        armour.stat_bonuses["defence"] = nat["AC"]
+        armour.description = nat["description"]
+        return armour
+
     if mob_type == "player":
         rarity = ""
     else:
@@ -239,7 +260,7 @@ def generate_armor_loot(mob_type,):
     choice = {}
     choice_name = ""
     if rarity:
-        for i in range(RARITY_BONUS[rarity]):
+        for i in range(RARE_LOOT_ROLLS[rarity]):
             if rarity in ["rare", "epic", "legendary"] and not choice in list(ITEM_MODIFIERS["armour"]["double"]):
                 if random.uniform(0, 1) > 0.2:
                     choice = random.choice(list(ITEM_MODIFIERS["armour"]["single"]))
@@ -342,12 +363,12 @@ def generate_enemy(level=1):
 
     if rarity and level >= RARE_LEVEL_THRESHOLD[base_name]:
         enemy = make_entity(f"{rarity} {base_name}",
-                            ENEMIES[base_name]["stats"]["health"] * RARITY_BONUS[rarity],
-                            ENEMIES[base_name]["stats"]["mana"]* RARITY_BONUS[rarity],
+                            ENEMIES[base_name]["stats"]["health"] * RARE_HP_MULT[rarity],
+                            ENEMIES[base_name]["stats"]["mana"]* RARE_HP_MULT[rarity],
                             base_name)
-        while i <= RARITY_BONUS[rarity]:
+        while i <= RARE_LOOT_ROLLS[rarity]:
             enemy.add_to_inventory(generate_items_loot(base_name))
-            for stat in list(ENEMIES[base_name]["stats"].keys())[2:]:
+            for stat in list(ENEMIES[base_name]["stats"].keys())[2:-1]:
                 enemy.stats[stat] += random.randint(0,3)
             enemy.gold += random.randint(1, 9) + ENEMIES[base_name]["stats"]["gold"]
             i += 1

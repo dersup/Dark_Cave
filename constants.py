@@ -100,8 +100,8 @@ ENEMIES = {
         },
         "resistances": {
             "fire": 0.00, "ice": 0.00, "lightning": 0.00, "water": 0.00,
-            "earth": 0.00, "wind": 0.50, "light": -0.75, "dark": 1.00,
-            "poison": 1.00, "physical": 1.00,
+            "earth": 0.00, "wind": 0.50, "light": -0.75, "dark": 1.0,
+            "poison": 1.00, "physical": 0.75,
         }
     },
     "dark mage": {"stats":{
@@ -248,16 +248,16 @@ ENEMIES_WEIGHT = {
     "3":  {"goblin": 35, "orc": 20, "wild orc": 10, "zombie": 10, "green slime": 8,  "blue slime": 5,
            "skeleton": 0,  "troll": 5,  "pumpkin horror": 5, "centaur": 2, "cyclops": 0, "minotaur": 0, "yeti": 0,
            "wraith": 0,  "dark mage": 0, "vampire": 0, "mother slime green": 0, "mother slime blue": 0},
-    "4":  {"goblin": 20, "orc": 20, "wild orc": 10, "zombie": 10, "green slime": 5,  "blue slime": 5,
+    "4":  {"goblin": 0, "orc": 20, "wild orc": 10, "zombie": 10, "green slime": 5,  "blue slime": 5,
            "skeleton": 5,  "troll": 8,  "pumpkin horror": 5, "centaur": 5, "cyclops": 3, "minotaur": 0, "yeti": 0,
            "wraith": 0,  "dark mage": 0, "vampire": 0, "mother slime green": 2, "mother slime blue": 2},
-    "5":  {"goblin": 15, "orc": 15, "wild orc": 10, "zombie": 8,  "green slime": 0,  "blue slime": 0,
+    "5":  {"goblin": 0, "orc": 15, "wild orc": 10, "zombie": 8,  "green slime": 0,  "blue slime": 0,
            "skeleton": 10, "troll": 10, "pumpkin horror": 5, "centaur": 8, "cyclops": 5, "minotaur": 3, "yeti": 3,
            "wraith": 0,  "dark mage": 0, "vampire": 0, "mother slime green": 4, "mother slime blue": 4},
-    "6":  {"goblin": 10, "orc": 10, "wild orc": 8,  "zombie": 5,  "green slime": 0,  "blue slime": 0,
+    "6":  {"goblin": 0, "orc": 10, "wild orc": 8,  "zombie": 5,  "green slime": 0,  "blue slime": 0,
            "skeleton": 12, "troll": 12, "pumpkin horror": 8, "centaur": 8, "cyclops": 8, "minotaur": 5, "yeti": 5,
            "wraith": 5,  "dark mage": 4, "vampire": 0, "mother slime green": 0, "mother slime blue": 0},
-    "7":  {"goblin": 5,  "orc": 5,  "wild orc": 5,  "zombie": 0,  "green slime": 0,  "blue slime": 0,
+    "7":  {"goblin": 0,  "orc": 5,  "wild orc": 5,  "zombie": 0,  "green slime": 0,  "blue slime": 0,
            "skeleton": 15, "troll": 15, "pumpkin horror": 5, "centaur": 8, "cyclops": 8, "minotaur": 8, "yeti": 8,
            "wraith": 8,  "dark mage": 5, "vampire": 0, "mother slime green": 0, "mother slime blue": 0},
     "8":  {"goblin": 0,  "orc": 0,  "wild orc": 0,  "zombie": 0,  "green slime": 0,  "blue slime": 0,
@@ -301,10 +301,7 @@ MOB_WEAPON_PREFERENCES = {
         "long sword": 10,
         "club": 5,
     },
-    "troll": {
-        "club": 50,
-        "axe": 50,
-    },
+    # troll, yeti, pumpkin horror, slimes -> natural weapons (see MOB_NATURAL_WEAPONS)
     "wraith": {
         "dagger": 60,
         "short sword": 40,
@@ -344,33 +341,7 @@ MOB_WEAPON_PREFERENCES = {
         "long sword": 30,
         "axe": 20,
     },
-    "yeti": {
-        "club": 70,
-        "axe": 30,
-    },
-    "pumpkin horror": {
-        "dagger": 40,
-        "short sword": 35,
-        "club": 25,
-    },
-    "green slime": {
-        "dagger": 60,
-        "club": 40,
-    },
-    "blue slime": {
-        "dagger": 60,
-        "club": 40,
-    },
-    "mother slime green": {
-        "club": 50,
-        "axe": 30,
-        "dagger": 20,
-    },
-    "mother slime blue": {
-        "club": 50,
-        "axe": 30,
-        "dagger": 20,
-    },
+    # yeti, pumpkin horror, slimes (all variants) -> natural weapons, see MOB_NATURAL_WEAPONS
 }
 
 MOB_ARMOR_PREFERENCES = {
@@ -395,11 +366,7 @@ MOB_ARMOR_PREFERENCES = {
         "half plate": 20,
         "leather jerkin": 10,
     },
-    "troll": {
-        "hide armor": 60,
-        "cloth": 30,
-        "leather jerkin": 10,
-    },
+    # troll, yeti, pumpkin horror, slimes -> natural armor (see MOB_NATURAL_ARMOR)
     "wraith": {
         "cloth": 70,
         "leather jerkin": 30,
@@ -442,30 +409,7 @@ MOB_ARMOR_PREFERENCES = {
         "scale mail": 25,
         "hide armor": 15,
     },
-    "yeti": {
-        "hide armor": 60,
-        "cloth": 25,
-        "leather jerkin": 15,
-    },
-    "pumpkin horror": {
-        "cloth": 50,
-        "leather jerkin": 30,
-        "hide armor": 20,
-    },
-    "green slime": {
-        "cloth": 100,
-    },
-    "blue slime": {
-        "cloth": 100,
-    },
-    "mother slime green": {
-        "cloth": 60,
-        "leather jerkin": 40,
-    },
-    "mother slime blue": {
-        "cloth": 60,
-        "leather jerkin": 40,
-    },
+    # yeti, pumpkin horror, slimes (all variants) -> natural armor, see MOB_NATURAL_ARMOR
 }
 
 MOB_ITEM_PREFERENCES = {
@@ -818,18 +762,14 @@ RARE_LEVEL_THRESHOLD = {
         "mother slime blue":   5,
     }
 RARITY = {
-    "": 98.498,
-    "rare": 1,
-    "epic": 0.5,
-    "legendary": 0.002,
+    "": 90,
+    "rare": 7,
+    "epic": 2.5,
+    "legendary": 0.5
 }
 
-RARITY_BONUS = {
-    "": 0,
-    "rare": 2,
-    "epic": 4,
-    "legendary": 7,
-}
+RARE_HP_MULT = {"": 1, "rare": 1.5, "epic": 2.0, "legendary": 3.0}
+RARE_LOOT_ROLLS = {"": 0, "rare": 1, "epic": 2, "legendary": 3}
 
 BASE_WEAPONS = {
     "dagger": {"damage": Elements("physical",5), "attack": 4, "value": 40, "description": "A small, easily concealed blade. Quick to draw and deadly in close quarters."},
@@ -840,6 +780,69 @@ BASE_WEAPONS = {
     "axe": {"damage":  Elements("physical",20), "attack": 0, "value": 70, "description": "A heavy cleaving weapon. Devastating on impact, but leaves you wide open between swings."},
 }
 
+# Natural weapons for mobs that can't hold gear (slimes, yeti, troll, pumpkin horror).
+# Damage is always a list[Elements] for uniform handling. value=0 because they're anatomy,
+# not loot. These bypass rarity/quality in the generator (see generate_weapon_loot).
+BASE_MOB_WEAPONS = {
+    # -- Slimes ---------------------------------------------------------------
+    "acidic pseudopod": {
+        "damage":      [Elements("physical", 2), Elements("poison", 1)],
+        "attack":      1,
+        "value":       0,
+        "description": "A blob of caustic ooze flung from a corrosive body.",
+    },
+    "frigid pseudopod": {
+        "damage":      [Elements("physical", 2), Elements("ice", 1)],
+        "attack":      1,
+        "value":       0,
+        "description": "A frigid lash of gelatinous matter that numbs on contact.",
+    },
+    "engulfing acid": {
+        "damage":      [Elements("physical", 5), Elements("poison", 3)],
+        "attack":      2,
+        "value":       0,
+        "description": "A heavy slap of viscous, caustic ooze.",
+    },
+    "engulfing rime": {
+        "damage":      [Elements("physical", 5), Elements("ice", 2), Elements("water", 2)],
+        "attack":      2,
+        "value":       0,
+        "description": "A drenching slam of supercooled slime that crusts over on impact.",
+    },
+    # -- Yeti -----------------------------------------------------------------
+    "frozen claws": {
+        "damage":      [Elements("physical", 14), Elements("ice", 6)],
+        "attack":      2,
+        "value":       0,
+        "description": "Massive claws sheathed in jagged frost.",
+    },
+    # -- Troll ----------------------------------------------------------------
+    "rending claws": {
+        "damage":      [Elements("physical", 12)],
+        "attack":      2,
+        "value":       0,
+        "description": "Knotted, calloused fists tipped with thick, splintered claws.",
+    },
+    # -- Pumpkin Horror -------------------------------------------------------
+    "thorned vines": {
+        "damage":      [Elements("physical", 4), Elements("dark", 4)],
+        "attack":      3,
+        "value":       0,
+        "description": "Whipping vines barbed with hooked thorns. Snare and bruise in equal measure.",
+    },
+}
+
+# Mob -> natural weapon key. Mobs in this map skip the normal weapon-pick pipeline.
+MOB_NATURAL_WEAPONS = {
+    "green slime":         "acidic pseudopod",
+    "blue slime":          "frigid pseudopod",
+    "mother slime green":  "engulfing acid",
+    "mother slime blue":   "engulfing rime",
+    "yeti":                "frozen claws",
+    "troll":               "rending claws",
+    "pumpkin horror":      "thorned vines",
+}
+
 BASE_ARMOR = {
     "cloth": {"AC":1,"value":30, "description": "Simple layered fabric. Offers little protection but allows free movement."},
     "leather jerkin": {"AC":2,"value":60, "description": "Toughened leather stitched into a fitted vest. Light and flexible with modest protection."},
@@ -847,6 +850,48 @@ BASE_ARMOR = {
     "chain shirt": {"AC":4,"value":240, "description": "Interlocking iron rings woven into a shirt. Deflects slashing blows without restricting movement."},
     "scale mail": {"AC":5,"value":480, "description": "Overlapping metal scales riveted to a leather backing. Solid protection at the cost of some agility."},
     "half plate": {"AC":6,"value":960, "description": "Fitted metal plates covering the vital areas. Near-impenetrable defense, but heavy and cumbersome."},
+}
+
+# Natural "armor" for monstrous creatures — their hide / ooze / rind / etc.
+# value=0 because it's anatomy, not loot. These bypass the rarity/quality
+# pipeline (see generate_armor_loot).
+BASE_MOB_ARMOR = {
+    "gelatinous membrane": {
+        "AC":          0,
+        "value":       0,
+        "description": "A semi-transparent layer of cohesive ooze. Token resistance to blows.",
+    },
+    "viscous mass": {
+        "AC":          1,
+        "value":       0,
+        "description": "A thick, jiggling body that absorbs and dissipates impact.",
+    },
+    "shaggy pelt": {
+        "AC":          3,
+        "value":       0,
+        "description": "A dense, frost-matted pelt over inches of insulating blubber.",
+    },
+    "leathery hide": {
+        "AC":          2,
+        "value":       0,
+        "description": "Thick, knotted hide that knits itself back together with disturbing speed.",
+    },
+    "pumpkin rind": {
+        "AC":          1,
+        "value":       0,
+        "description": "A hollow shell of fibrous gourd. Brittle, but better than nothing.",
+    },
+}
+
+# Mob -> natural armor key. Mobs in this map skip the normal armor-pick pipeline.
+MOB_NATURAL_ARMOR = {
+    "green slime":         "gelatinous membrane",
+    "blue slime":          "gelatinous membrane",
+    "mother slime green":  "viscous mass",
+    "mother slime blue":   "viscous mass",
+    "yeti":                "shaggy pelt",
+    "troll":               "leathery hide",
+    "pumpkin horror":      "pumpkin rind",
 }
 
 BASE_SPELLS = {

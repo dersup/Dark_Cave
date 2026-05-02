@@ -42,6 +42,47 @@ def get_neighbors(maze, row, col):
 	return neighbors
 
 
+def has_line_of_sight(maze, src_loc, dst_loc, max_dist):
+	"""Return (direction, distance) if dst_loc is reachable from src_loc in a
+	straight cardinal line within max_dist cells without any wall in the way,
+	else None.
+
+	Used for spell targeting: the spell travels in one of the four cardinal
+	directions, stopping at walls. Diagonals are not allowed.
+	"""
+	sr, sc = src_loc
+	dr_, dc_ = dst_loc
+
+	if (sr, sc) == (dr_, dc_):
+		return None
+
+	# Must share a row or column to be in a straight cardinal line.
+	if sr == dr_:
+		direction = "right" if dc_ > sc else "left"
+		steps = abs(dc_ - sc)
+	elif sc == dc_:
+		direction = "down" if dr_ > sr else "up"
+		steps = abs(dr_ - sr)
+	else:
+		return None
+
+	if steps > max_dist:
+		return None
+
+	wall_for_dir = {"up": "top", "down": "bottom",
+	                "left": "left", "right": "right"}
+	wall = wall_for_dir[direction]
+
+	r, c = sr, sc
+	for _ in range(steps):
+		# A wall on the leaving-side of the current cell blocks the spell.
+		if getattr(maze.cells[r][c], wall):
+			return None
+		r, c = next_cell(r, c, direction)
+
+	return direction, steps
+
+
 class Entity:
 	def __init__(self, name, max_health, max_mana, armor_=Armour(), weapon_=Weapon()):
 		self.name       = name
@@ -87,20 +128,57 @@ class Entity:
 		self.mana -= spell.cost
 		return f"You cast {spell.name}" + self.throw(spell, maze)
 
-	def take_damage(self, elements: list, extra_dam=0, mod=1.0) -> dict:
-		total  = {}
-		damage = random.randint(1, 6)
-		for element in elements:
-			if element is elements[0]:
-				damage += extra_dam
-			damage = max(
-				int(mod * ((damage + element.damage) -
-						   (damage + element.damage) * self.resistances[element.type])),
-				0,
-			)
-			total[element.type] = damage
-			self.health -= damage
+	def _try_cast_spell_at_player(self, player, maze):
+		"""If this entity has a Staff with a usable spell that can hit the
+		player in a straight cardinal line of sight within range, cast the
+		strongest affordable one. Returns the result message, or None if no
+		spell was cast (no staff, no spells, not enough mana, no LOS, or out
+		of range).
+		"""
+		if not isinstance(self.weapon, Staff):
+			return None
+		spells = self.get_spells()
+		if not spells:
+			return None
 
+		affordable = [s for s in spells.values() if self.mana >= s.cost]
+		if not affordable:
+			return None
+
+		# Cheapest cull: if even the longest-range spell can't reach the
+		# player, skip the more expensive LOS check entirely.
+		max_range = max(s.distance for s in affordable)
+		los = has_line_of_sight(
+			maze,
+			self.location.location,
+			player.location.location,
+			max_range,
+		)
+		if not los:
+			return None
+		direction, dist_to_player = los
+
+		# Pick the strongest affordable spell that actually reaches.
+		# `cost` is used as a damage proxy here -- swap to a damage-based
+		# key if you'd rather pick by raw element damage.
+		candidates = [s for s in affordable if s.distance >= dist_to_player]
+		if not candidates:
+			return None
+		spell = max(candidates, key=lambda s: s.cost)
+
+		self.facing = direction
+		self.mana -= spell.cost
+		return f"{self.name} casts {spell.name}!" + self.throw(spell, maze)
+
+	def take_damage(self, elements, extra_dam=0, mod=1.0):
+		total = {}
+		for i, element in enumerate(elements):
+			roll = random.randint(1, 6)
+			bonus = extra_dam if i == 0 else 0
+			raw = roll + element.damage + bonus
+			dealt = max(int(mod * raw * (1 - self.resistances[element.type])), 0)
+			total[element.type] = dealt
+			self.health -= dealt
 		return total
 
 	def attack_target(self, enemy, weapon_, maze):
@@ -140,12 +218,12 @@ class Entity:
 			roll += int(self.stats["attack"])
 			attack_total = roll + self.weapon.attack
 			e_defence = int(enemy.stats["defence"])
+		if attack_total < 10 + e_defence:
+			return f"{self.name} misses {enemy.name}."
 		dam_taken = enemy.take_damage(weapon_.elements,mod=2 if crit else 1)
 		if isinstance(weapon_, Throwing) and "bomb" in weapon_.name:
 			dam_taken = enemy.take_damage(weapon_.elements,mod=2 if crit else 1) if roll > 10 \
 				else enemy.take_damage(weapon_.elements, 0.5)
-		elif attack_total < 10 + e_defence:
-			return f"{self.name} misses {enemy.name}."
 
 		if not dam_taken:
 			return f"{enemy.name} took no damage"
@@ -212,8 +290,12 @@ class Entity:
 
 	def give_inventory(self, target):
 		for items in self.inventory.items.values():
+			giving = []
 			if items:
-				target.add_items_to_inventory(items)
+				for item in items:
+					if item.name.lower() not in list(MOB_NATURAL_ARMOR.values()) and item.name.lower() not in list(MOB_NATURAL_WEAPONS.values()) :
+						giving.append(item)
+				target.add_items_to_inventory(giving)
 		target.gold += self.gold
 		self.remove_inventory()
 
@@ -330,8 +412,17 @@ class Entity:
 		row, col = self.location.location
 		for _ in range(item.distance):
 			curr = maze.cells[row][col]
-			if curr.enemy_entity:
-				return self.attack_target(curr.enemy_entity, item, maze)
+			# Look for a hostile target on this cell. Skip the caster itself
+			# so an enemy casting from its own tile doesn't suicide on iter 1.
+			# This also lets enemy-cast spells hit the player_entity, which
+			# the original check ignored.
+			target = None
+			if curr.enemy_entity is not None and curr.enemy_entity is not self:
+				target = curr.enemy_entity
+			elif curr.player_entity is not None and curr.player_entity is not self:
+				target = curr.player_entity
+			if target is not None:
+				return self.attack_target(target, item, maze)
 			if curr.can_move(self.facing, maze) == "move":
 				row, col = next_cell(row, col, self.facing)
 				if not (0 <= row <= maze.num_rows - 1 and 0 <= col <= maze.num_cols - 1):
@@ -437,7 +528,7 @@ class Entity:
 			if bx == ax + 1: return "right"
 			return None
 		if "troll" in self.name.lower():
-			self.health = min(10 + self.health,self.max_health)
+			self.health = min(5 + self.health,self.max_health)
 
 		if not self.location:
 			_done(); return None,None
@@ -451,6 +542,15 @@ class Entity:
 		p_row, p_col = player.location.location
 		dist_r = my_row - p_row
 		dist_c = my_col - p_col
+
+		# Magic first: if we're holding a staff and the player is in a
+		# straight cardinal line within spell range (no walls between), zap
+		# them and end the turn. We do this before melee so staff-wielders
+		# feel distinct from purely physical mobs.
+		spell_msg = self._try_cast_spell_at_player(player, maze)
+		if spell_msg is not None:
+			_done()
+			return self.location, spell_msg
 
 		# Adjacent -> try to attack through an open wall
 		if abs(dist_c) + abs(dist_r) == 1:
