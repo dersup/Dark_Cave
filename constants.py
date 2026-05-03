@@ -55,7 +55,7 @@ ELEMENTS = [
 ]
 ENEMIES = {
     "goblin": {"stats":{
-        "health": 8, "mana":40, "attack": 3, "defence": 5, "luck": 10,
+        "health": 20, "mana":40, "attack": 3, "defence": 5, "luck": 10,
         "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 10, "gold": 1
         },
         "resistances": {
@@ -65,7 +65,7 @@ ENEMIES = {
         }
     },
     "orc": {"stats":{
-        "health": 15, "mana":40, "attack": 8, "defence": 8, "luck": 5,
+        "health": 30, "mana":40, "attack": 8, "defence": 8, "luck": 5,
         "magic_defence": 2, "magic_attack": 0, "agility": 3, "exp": 25, "gold": 3
         },
         "resistances": {
@@ -75,7 +75,7 @@ ENEMIES = {
         }
     },
     "skeleton": {"stats":{
-        "health": 20, "mana":70, "attack": 8, "defence": 10, "luck": 5,
+        "health": 25, "mana":70, "attack": 8, "defence": 10, "luck": 5,
         "magic_defence": 15, "magic_attack": 0, "agility": 0, "exp": 30, "gold": 10
         },
         "resistances": {
@@ -85,7 +85,7 @@ ENEMIES = {
         }
     },
     "troll": {"stats":{
-        "health": 40, "mana":40, "attack": 10, "defence": 10, "luck": 3,
+        "health": 50, "mana":40, "attack": 10, "defence": 10, "luck": 3,
         "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 50, "gold": 5
         },
         "resistances": {
@@ -95,7 +95,7 @@ ENEMIES = {
         }
     },
     "wraith": {"stats":{
-        "health": 35, "mana":200, "attack": 10, "defence": 5, "luck": 10,
+        "health": 45, "mana":200, "attack": 10, "defence": 5, "luck": 10,
         "magic_defence": 10, "magic_attack": 8, "agility": 25, "exp": 55, "gold": 15
         },
         "resistances": {
@@ -125,7 +125,7 @@ ENEMIES = {
         }
     },
     "zombie": {"stats":{
-        "health": 10, "mana":0, "attack": 5, "defence": 4, "luck": 2,
+        "health": 20, "mana":0, "attack": 5, "defence": 4, "luck": 2,
         "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 18, "gold": 2
         },
         "resistances": {
@@ -135,7 +135,7 @@ ENEMIES = {
         }
     },
     "wild orc": {"stats":{
-        "health": 20, "mana":20, "attack": 10, "defence": 6, "luck": 4,
+        "health": 40, "mana":20, "attack": 10, "defence": 6, "luck": 4,
         "magic_defence": 0, "magic_attack": 0, "agility": 5, "exp": 30, "gold": 4
         },
         "resistances": {
@@ -175,7 +175,7 @@ ENEMIES = {
         }
     },
     "yeti": {"stats":{
-        "health": 30, "mana":20, "attack": 16, "defence": 12, "luck": 4,
+        "health": 80, "mana":20, "attack": 16, "defence": 12, "luck": 4,
         "magic_defence": 3, "magic_attack": 0, "agility": 3, "exp": 65, "gold": 9
         },
         "resistances": {
@@ -185,7 +185,7 @@ ENEMIES = {
         }
     },
     "pumpkin horror": {"stats":{
-        "health": 18, "mana":80, "attack": 7, "defence": 6, "luck": 12,
+        "health": 38, "mana":80, "attack": 7, "defence": 6, "luck": 12,
         "magic_defence": 8, "magic_attack": 5, "agility": 5, "exp": 40, "gold": 6
         },
         "resistances": {
@@ -195,7 +195,7 @@ ENEMIES = {
         }
     },
     "green slime": {"stats":{
-        "health": 5, "mana":0, "attack": 2, "defence": 2, "luck": 5,
+        "health": 10, "mana":0, "attack": 2, "defence": 2, "luck": 5,
         "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 8, "gold": 1
         },
         "resistances": {
@@ -205,7 +205,7 @@ ENEMIES = {
         }
     },
     "blue slime": {"stats":{
-        "health": 8, "mana":10, "attack": 3, "defence": 2, "luck": 5,
+        "health": 10, "mana":10, "attack": 3, "defence": 2, "luck": 5,
         "magic_defence": 5, "magic_attack": 0, "agility": 0, "exp": 10, "gold": 1
         },
         "resistances": {
@@ -215,7 +215,7 @@ ENEMIES = {
         }
     },
     "mother slime green": {"stats":{
-        "health": 20, "mana":0, "attack": 6, "defence": 5, "luck": 5,
+        "health": 40, "mana":0, "attack": 6, "defence": 5, "luck": 5,
         "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 35, "gold": 5
         },
         "resistances": {
@@ -225,7 +225,7 @@ ENEMIES = {
         }
     },
     "mother slime blue": {"stats":{
-        "health": 26, "mana":30, "attack": 7, "defence": 5, "luck": 5,
+        "health": 46, "mana":30, "attack": 7, "defence": 5, "luck": 5,
         "magic_defence": 10, "magic_attack": 0, "agility": 0, "exp": 38, "gold": 5
         },
         "resistances": {

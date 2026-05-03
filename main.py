@@ -824,8 +824,10 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         win.inventory_show  = False
         win.spell_list_show = False
         win.pause_show      = False
+        win.log_show        = False
         win._log            = []
         win._log_timer      = []
+        win.clear_log_history()
 
     win._ui_blocked = False
     await preload_sprites()
@@ -1058,6 +1060,17 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
             log_prefix  = "",
             ends_turn   = False,
         ),
+        # Read-only run history. action_fn=None makes Enter/E silent no-ops
+        # via _do_panel_action's None-check; drop is similarly absent. Tab
+        # toggles the panel; Esc also closes. ends_turn=False so opening
+        # the log doesn't burn a turn.
+        "log": dict(
+            close_key   = (pygame.K_TAB, pygame.K_ESCAPE),
+            action_fn   = None,
+            refresh_fn  = lambda: win.set_log_panel(),
+            log_prefix  = "",
+            ends_turn   = False,
+        ),
     }
 
     def _do_panel_action(panel, fn_key, prefix_key, by="name"):
@@ -1105,10 +1118,17 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
 
     def open_panel(panel="inventory"):
         # The pause panel has no per-Entity setup (its lines are static), so
-        # toggle it directly. Inventory/spell_list go through Entity.show_panel
-        # which also rebuilds their line data.
+        # toggle it directly. The log panel is also Windows-internal -- it
+        # reads from win._history, not the player -- so we populate via
+        # set_log_panel and toggle visibility here. Inventory/spell_list go
+        # through Entity.show_panel which also rebuilds their line data.
         if panel == "pause":
             win.pause_show = not win.pause_show
+        elif panel == "log":
+            # Build lines fresh each time so newly logged messages since the
+            # last open are included, and scroll jumps to the bottom.
+            win.set_log_panel()
+            win.log_show = not win.log_show
         else:
             player.show_panel(win, panel)
         if getattr(win, f"{panel}_show"):
@@ -1179,6 +1199,7 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         win.bind(pygame.K_e,     pickup)
         win.bind(pygame.K_j,     inspect_cell)
         win.bind(pygame.K_i,     open_inventory)
+        win.bind(pygame.K_TAB,   lambda: open_panel("log"))
         win.bind(pygame.K_ESCAPE, open_pause)
         # Save / Load
         win.bind(pygame.K_F5,    do_save)

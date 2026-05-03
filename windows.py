@@ -28,7 +28,10 @@ FONT_SIZE = {"lg": 22, "md": 16, "sm": 13}
 class Panel:
     """All state for a single scrollable list panel."""
 
-    def __init__(self, title: str, hint: str, *, show_info_pane: bool = True):
+    def __init__(self, title: str, hint: str, *,
+                 show_info_pane: bool = True,
+                 show_cursor: bool = True,
+                 width: int = 300):
         self.title   = title
         self.hint    = hint
         self.lines   = []   # list of (text, is_header, item_obj | None)
@@ -38,6 +41,13 @@ class Panel:
         # If False, _draw_panel skips the right-side item-info pane (used by
         # the pause menu, where each line is a command, not an inspectable item)
         self.show_info_pane = show_info_pane
+        # If False, rows render without highlight and W/S/Up/Down scroll the
+        # viewport instead of moving a cursor (used by the log panel, which
+        # is read-only -- no row is "selected" because no row is actionable).
+        self.show_cursor = show_cursor
+        # Panel width in pixels. Lets the log panel be wider than the
+        # inventory/spells panels for better message readability.
+        self.width = width
 
         # -- Scrolling --------------------------------------------------------
         # `scroll`  = index of the first line currently rendered.
@@ -149,6 +159,10 @@ class Windows:
         self._go_text   = ""
         self._log       = []
         self._log_timer = []
+        # Persistent log of every message from this run -- distinct from
+        # _log/_log_timer above, which are the fading 6-message HUD overlay.
+        # The Tab-toggled log panel reads from this, so nothing scrolls off.
+        self._history: list = []
 
         # All panels live here; adding a new one is one line.
         self._panels = {
@@ -159,6 +173,11 @@ class Windows:
             "pause":      Panel("PAUSED  (Esc to close)",
                                 "WS/Hover  Enter/Click:select",
                                 show_info_pane=False),
+            "log":        Panel("LOG  (Tab to close)",
+                                "WS/Up/Down/Wheel: scroll",
+                                show_info_pane=False,
+                                show_cursor=False,
+                                width=600),
         }
         # Pause menu is a static command list, populated once at construction.
         self._panels["pause"].set_lines([
@@ -194,6 +213,11 @@ class Windows:
     def pause_show(self):                return self._panels["pause"].visible
     @pause_show.setter
     def pause_show(self, v):             self._panels["pause"].visible = v
+
+    @property
+    def log_show(self):                  return self._panels["log"].visible
+    @log_show.setter
+    def log_show(self, v):               self._panels["log"].visible = v
 
     # -- Camera ----------------------------------------------------------------
 
@@ -250,6 +274,28 @@ class Windows:
         if len(self._log) > 6:
             self._log.pop(0)
             self._log_timer.pop(0)
+        # Persistent run history -- never trimmed; viewed via Tab.
+        self._history.append(message)
+
+    def clear_log_history(self):
+        """Wipe the persistent log. Call when starting a fresh run."""
+        self._history = []
+
+    def set_log_panel(self):
+        """Populate the log panel with every message from this run, word-
+        wrapped to the panel's width, and jump the view to the bottom so the
+        most recent messages are on screen."""
+        panel = self._panels["log"]
+        max_w = panel.width - 24  # match left/right padding used in _draw_panel
+        lines: list = []
+        for msg in self._history:
+            for sub in self._wrap_text(msg, max_w, size="sm"):
+                lines.append((sub, False, None))
+        panel.set_lines(lines)
+        # Jump to the bottom. _visible_count is recomputed each draw, so we
+        # set scroll high and let _clamp_scroll pull it to the right value.
+        panel.scroll = len(lines)
+        panel.cursor = max(0, len(lines) - 1)
 
     # -- HUD updates -----------------------------------------------------------
 
@@ -291,7 +337,14 @@ class Windows:
     # -- Panel cursor / selection ----------------------------------------------
 
     def panel_cursor_move(self, panel_key: str, delta: int):
-        self._panels[panel_key].move_cursor(delta)
+        panel = self._panels[panel_key]
+        # Read-only panels (log) have no cursor concept -- W/S/Up/Down
+        # scrolls the viewport directly. The held-key auto-repeat in main.py
+        # routes through here too, so holding the key just keeps scrolling.
+        if not panel.show_cursor:
+            panel.scroll_by(delta)
+        else:
+            panel.move_cursor(delta)
 
     def panel_selected_name(self, panel_key: str) -> str:
         return self._panels[panel_key].selected_name()
@@ -402,7 +455,7 @@ class Windows:
         self.txt(self._hp_str,    16, 10, "md", HP_COL)
         self.txt(self._mp_str,    32 + self.font["md"].size(self._hp_str)[0], 10, "md", MP_COL)
         self.txt(self._gold_str,  16, self.h - 28, "md", GOLD)
-        hint = "WASD/Arrows:Move  Shift+dir:Face  E:Pick up  I:Inventory C:Cast"
+        hint = "WASD/Arrows:Move  Shift+dir:Face  E:Pick up  I:Inventory C:Cast  Tab:Log"
         save_hint = "SAVE F5 / LOAD F9"
         self.txt(hint, self.w - 10 - self.font["md"].size(hint)[0],
                  self.h - 20, "md", TEXT)
@@ -538,7 +591,7 @@ class Windows:
 
     def _draw_panel(self, panel: Panel):
         """Single method draws any panel -- inventory and spell list both use this."""
-        pw = 300
+        pw = panel.width
         ph = min(self.h - 120, len(panel.lines) * 20 + 80)
         px = (self.w - pw) // 1.5
         py = 50
@@ -605,7 +658,7 @@ class Windows:
 
             if is_hdr:
                 self.txt(text, px + 10, y, "sm", GOLD)
-            elif i == panel.cursor:
+            elif i == panel.cursor and panel.show_cursor:
                 pygame.draw.rect(self.surface, HIGHLIGHT_BG,
                                  (px + 2, y - 1,
                                   list_right - (px + 2) - 2, 18))
@@ -775,6 +828,10 @@ class Windows:
                 panel.scroll = int(round(ratio * max_scr))
                 panel._clamp_scroll()
                 return
+            # Read-only panels (log) ignore row hover -- there's no cursor to
+            # move and no row-level action to telegraph.
+            if not panel.show_cursor:
+                return
             # Otherwise: hover -> move cursor to the hovered row (skip headers).
             for rect, line_idx in panel.row_rects:
                 if rect.collidepoint(ev.pos):
@@ -814,6 +871,10 @@ class Windows:
                         panel.scroll_by(panel._visible_count)
                     return
                 # 4) Row -> select + use
+                # Read-only panels (log) skip this -- the X / scrollbar /
+                # mouse wheel above still work.
+                if not panel.show_cursor:
+                    return
                 for rect, line_idx in panel.row_rects:
                     if rect.collidepoint(ev.pos):
                         if 0 <= line_idx < len(panel.lines) and not panel.lines[line_idx][1]:
@@ -826,6 +887,8 @@ class Windows:
                 # Right click -> drop (only if the panel registered a drop_fn)
                 drop_fn = actions.get("drop")
                 if drop_fn is None:
+                    return
+                if not panel.show_cursor:
                     return
                 for rect, line_idx in panel.row_rects:
                     if rect.collidepoint(ev.pos):
