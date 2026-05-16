@@ -4,6 +4,7 @@
 #The Dark Cave -- Pygame edition
 #------------------------------
 #Desktop:  python main.py
+import copy
 
 # Save / Load
 #------------------------------
@@ -366,7 +367,9 @@ async def _stat_allocation(win: Windows, player: Entity, *, allow_back: bool = F
     stats    = ["attack", "defence", "luck",
                 "magic_defence", "magic_attack", "agility"]
     values   = {s: 0 for s in stats}
-    total    = 25
+    # BALANCE: 25 -> 15. Forces real tradeoffs. With 25 you could max attack
+    # *and* dump 10 into agility for crits; at 15 you can't have both.
+    total    = 15
     cursor   = [0]
     hold_timer = 0
     HOLD_DELAY = 0.2
@@ -378,7 +381,7 @@ async def _stat_allocation(win: Windows, player: Entity, *, allow_back: bool = F
         font_md = win.font["md"]
         for i, stat in enumerate(stats):
             y = win.h // 6 + 55 + i * 34
-            bar = "█" * values[stat] + "░" * (25 - values[stat])
+            bar = "█" * values[stat] + "░" * (15 - values[stat])
             text = f"  {stat:<15} {values[stat]:>2}  {bar[:20]}"
             tw, th = font_md.size(text)
             text_x = win.w // 2 - 160
@@ -405,7 +408,7 @@ async def _stat_allocation(win: Windows, player: Entity, *, allow_back: bool = F
             pre = "▶ " if i == cursor[0] else "  "
             c   = COLOURS["purple"] if i == cursor[0] else COLOURS["orange"]
             # visual bar
-            bar = "█" * values[stat] + "░" * (25 - values[stat])
+            bar = "█" * values[stat] + "░" * (15 - values[stat])
             win.txt(f"{pre}{stat:<15} {values[stat]:>2}  {bar[:20]}", win.w // 2 - 160, y, "md", c)
 
         # +/- buttons next to each row
@@ -574,7 +577,9 @@ async def _character_creation(win: Windows) -> Entity | None:
 
         else:  # step == 3
             armor  = generate_armor_loot("player")
-            player = Entity(name, 100, 100, armor_=armor, weapon_=weapon_obj)
+            # BALANCE: starting HP 100 -> 60, MP 100 -> 40. The buffer used to
+            # absorb 15+ early-game hits; now ~5-6. Death is real on floor 1.
+            player = Entity(name, 60, 40, armor_=armor, weapon_=weapon_obj)
             confirmed = await _stat_allocation(win, player, allow_back=True)
             if not confirmed:
                 step = 2
@@ -846,13 +851,14 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
             # Returning None means they backed all the way out; loop the
             # start menu again.
             player = await _character_creation(win)
+            win.player_choice = copy.deepcopy(player)
 
     # -- Maze (skip rebuild when loaded from save) ----------------------------
     if maze is None:
         maze = Maze(win.maze_size[1], win.maze_size[0], win)
         maze.create_maze()
         maze.player_init(player)
-        maze.monsters_init()
+        maze.monsters_init(player)
     else:
         # Resuming: maze already fully rebuilt by load_game or next_level
         maze._win = win
@@ -896,8 +902,12 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
 
     def do_enemy_turn():
         def _retry():
+            # "Yes" handler. Setting the restart request is sufficient — the
+            # main loop will see it on the next tick, return out of this
+            # main() call, and re-enter with the snapshot. Re-showing the
+            # game-over screen here would just re-bind the same Y/N keys to
+            # a dead handler scope.
             win._restart_request = ("retry", None, None)
-            win.show_game_over(player, maze, on_retry=_retry, on_quit=_to_menu)
         py,px = player.location.location
         nonlocal alive
         for row in maze.cells:
@@ -929,10 +939,10 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
         _quit_app()
 
     def _to_menu():
-        # "N" on the game-over screen: don't close the app, return to the
-        # start menu. Reuse the "retry" restart kind (player=None, maze=None)
-        # so main() re-enters and falls through to the start_menu loop.
-        win._restart_request = ("retry", None, None)
+        # "No" on the game-over screen: drop the character snapshot and
+        # re-enter main() with no player, so it falls through to the start
+        # menu / character-creation flow.
+        win._restart_request = ("menu", None, None)
 
     def move(direction):
         nonlocal busy
@@ -1215,7 +1225,23 @@ async def main(player: Entity = None, win: Windows = None, maze: Maze = None):
             kind, p, m = win._restart_request
             win._restart_request = None
             if kind == "retry":
-                # Fresh character + fresh maze, keep window
+                # "Yes" at game over: rebuild the run with the *originally
+                # created* character (gender / name / weapon / stat-allocation),
+                # at level 1, with a fresh maze and fresh monsters.
+                #
+                # IMPORTANT: deep-copy the snapshot. main() mutates the player
+                # object during play (health, inventory, location, level), so
+                # passing win.player_choice by reference would corrupt it on
+                # the first restart and the second restart would restore the
+                # already-dead character. The deep-copy keeps win.player_choice
+                # pristine across any number of deaths.
+                snap = getattr(win, "player_choice", None)
+                player = copy.deepcopy(snap) if snap is not None else None
+                return await main(player=player, win=win)
+            if kind == "menu":
+                # "No" at game over: drop the snapshot and fall through to the
+                # start menu / character-creation flow on re-entry.
+                win.player_choice = None
                 return await main(win=win)
             if kind == "load":
                 return await main(player=p, win=win, maze=m)

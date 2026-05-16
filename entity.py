@@ -182,7 +182,10 @@ class Entity:
 		return total
 
 	def attack_target(self, enemy, weapon_, maze):
-		crit = True if random.randint(1, 20) + max(1,self.stats["agility"]//3) >= 20 else False
+		# BALANCE: agility//3 -> agility//5. 15 agility was 25% crit (cheap and
+		# dominant); now 25 agility for the same rate. Builds can't double-dip
+		# on offense + crit easily.
+		crit = True if random.randint(1, 20) + max(1,self.stats["agility"]//5) >= 20 else False
 		if not weapon_:
 			return "You have no weapon."
 
@@ -192,7 +195,10 @@ class Entity:
 			dead.give_inventory(maze.cells[dead.location.location[0]][dead.location.location[1]])
 			dead_name = dead.name
 			dy,dx = dead.location.location
-			if attacker.stats["exp"] >= 75 * attacker.level and not getattr(attacker, '_leveling_up', False):
+			if attacker.stats["exp"] >= 120 * attacker.level and not getattr(attacker, '_leveling_up', False):
+				# BALANCE: 75*lvl -> 120*lvl. Combined with the -30% XP cut on
+				# enemy rewards (constants.py), leveling is ~2.3x slower. A
+				# full run now levels you ~5-7 times instead of 12+.
 				attacker.stats["exp"] = 0
 				attacker.level       += 1
 				attacker._leveling_up = True
@@ -458,7 +464,10 @@ class Entity:
 	# -- Movement --------------------------------------------------------------
 
 	def move(self, direction, maze, on_complete=None):
-		self.mana = min(self.mana+2 ,self.max_mana)
+		# BALANCE: +2 -> +1 mana per step. With max_mana 40 (was 100) and most
+		# spells costing 15-30, you get ~1-2 casts per dungeon room, not a
+		# constant stream.
+		self.mana = min(self.mana+1 ,self.max_mana)
 		def _done():
 			if on_complete: on_complete()
 
@@ -527,8 +536,11 @@ class Entity:
 			if bx == ax - 1: return "left"
 			if bx == ax + 1: return "right"
 			return None
+		# BALANCE: 5 -> 3 regen/turn. Troll is still a damage sponge but no
+		# longer a hard wall against low-DPS builds. A 6+ DPS attack still
+		# nets progress; previously you needed ~6 DPS just to stalemate.
 		if "troll" in self.name.lower():
-			self.health = min(5 + self.health,self.max_health)
+			self.health = min(3 + self.health,self.max_health)
 
 		if not self.location:
 			_done(); return None,None

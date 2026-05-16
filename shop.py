@@ -124,9 +124,14 @@ def buy_price(item) -> int:
 
 
 def sell_price(item) -> int:
-    """What the shop pays for one of the player's items. Half value, floored
-    at 1g so even a `destroyed` / `broken` piece is worth picking up."""
-    return max(1, int(getattr(item, "value", 0) or 0) // 2)
+    """What the shop pays for one of the player's items. Floored at 1g.
+
+    BALANCE: was //2 (50%). Now //3 (33%). Combined with -35% enemy gold
+    drops, the player can no longer fund themselves into a masterwork
+    suit by floor 4 just by flipping rare drops. Selling stays useful for
+    "broken / destroyed" trash, just not lucrative.
+    """
+    return max(1, int(getattr(item, "value", 0) or 0) // 3)
 
 
 # ---------------------------------------------------------------------------

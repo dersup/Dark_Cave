@@ -4,14 +4,18 @@ sprites.py -- Sprite-sheet animation system.
 Frame layout (per every `_AnimationInfo.txt` in the asset pack):
   * Every frame is 32x32 px.
   * Rows encode facing direction:
-      - Row 0 (1st row, odd):  right-facing
-      - Row 1 (2nd row, even): left-facing
-      - Row 2 (3rd row, odd):  right-facing (variant pose)
-      - Row 3 (4th row, even): left-facing  (variant pose)
+      - Row 0 (1st row): right-facing
+      - Row 1 (2nd row): left-facing
+      - Row 2 (3rd row): up-facing
+      - Row 3 (4th row): unused (was historically a left-facing pose
+                                 variant; reserved for future "down")
   * Columns encode animation frames (played left-to-right).
 
 Sheets with only 1 row (height == 32) have no left-facing variant --
 those frames are flipped horizontally when the entity faces left.
+Sheets with fewer than 3 rows have no up-facing variant -- "up" falls
+back to the left-facing row. "down" has no dedicated row in any sheet
+and falls back the same way.
 
 Each AnimSprite:
   * loads the correct PNG strip from assets/
@@ -233,7 +237,7 @@ MOB_SPRITE_DB: dict[str, dict[str, tuple]] = {
 # Per asset convention:
 #   row 0 = right-facing
 #   row 1 = left-facing
-#   row 2 = right-facing (variant)
+#   row 2 = up-facing
 #   row 3 = left-facing  (variant)
 # If a sheet has only one row, that row is right-facing and we horizontally
 # flip for left-facing.
@@ -242,14 +246,35 @@ MOB_SPRITE_DB: dict[str, dict[str, tuple]] = {
 def _row_for_facing(facing: str, n_rows: int) -> tuple[int, bool]:
     """
     Given a facing direction and the number of rows in a sheet, return:
-      (row_index, flip_horizontally)
-    """
-    face_left = (facing == "left")
+      (row_index, flip)
 
-    if n_rows <= 1:
-        return 0, face_left
-    # Two or more rows: row 0 = right, row 1 = left.
-    return (1 if face_left else 0), False
+    Asset row convention:
+      row 0 — right-facing
+      row 1 — left-facing
+      row 2 — up-facing   (only present in sheets with 3+ rows)
+
+    Single-row sheets flip horizontally for left. Sheets without a row 2
+    (n_rows < 3) fall back to the left-row + flip-for-right behaviour for
+    "up", since they have no dedicated up-facing pose. "down" has no
+    dedicated row anywhere; it falls through to the left row unflipped,
+    same as before.
+    """
+
+    # Single-row sheet: only horizontal flipping is available.
+    if n_rows == 1:
+        return 0, facing == "left"
+
+    # Use the 3rd row (index 2) for up-facing when the sheet provides it.
+    # Previously this case was unreachable: the function fell through to
+    # `return 1, facing == "right"` for every direction, so "up" rendered
+    # as the left-facing sprite.
+    if facing == "up" and n_rows >= 3:
+        return 2, False
+
+    # Default: row 1 holds the left-facing pose; flip horizontally for
+    # right-facing. "down" and "up" (on sheets with < 3 rows) also land
+    # here, treated as left-facing.
+    return 1, facing == "right"
 
 
 # ---------------------------------------------------------------------------
@@ -357,7 +382,7 @@ class AnimSprite:
         Row selection per asset convention:
           row 0 = right-facing
           row 1 = left-facing
-          rows 2+ = unused (pose variants)
+          row 2 = up-facing
         Single-row sheets use horizontal flipping for left-facing.
         """
         if state not in self._db:
@@ -446,8 +471,8 @@ async def preload_sprites():
             AnimSprite._row_count_cache[path_rel] = n_rows
             actual_frames = min(n_frames, w // FRAME_SIZE)
 
-            # Build the two facings we actually render with.
-            for facing in ("right", "left"):
+            # Build the three facings we actually render with.
+            for facing in ("right", "left","up"):
                 row_idx, flip = _row_for_facing(facing, n_rows)
                 cache_key = (path_rel, row_idx, flip, CELL_SIZE)
                 if cache_key in AnimSprite._sheet_cache:

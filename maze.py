@@ -204,12 +204,13 @@ class Maze:
         cell.set_player(player)
         player.location = cell
         self._place_entrance_exit(cell, wall)
+        self.update_visibility(player)
 
-    def monsters_init(self):
-        max_enemies = int(random.randint(self.num_rows,self.num_rows*(self.num_cols//2)))
+    def monsters_init(self, player):
+        max_enemies = int(random.randint((self.num_rows*self.num_cols)//6,(self.num_rows*self.num_cols)//4))
         candidates = [
             cell for row in self.cells for cell in row
-            if not cell.player
+            if not tuple(cell.location) in player.visible_cells
         ]
         random.shuffle(candidates)
         placed = 0
@@ -287,7 +288,7 @@ class Maze:
         await asyncio.sleep(0)
         self.player_init(player)
         await asyncio.sleep(0)
-        self.monsters_init()
+        self.monsters_init(player)
         await asyncio.sleep(0)
         # Re-center camera + refresh UI in place
         x, y = player.location.cent.x, player.location.cent.y

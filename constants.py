@@ -55,8 +55,8 @@ ELEMENTS = [
 ]
 ENEMIES = {
     "goblin": {"stats":{
-        "health": 20, "mana":40, "attack": 3, "defence": 5, "luck": 10,
-        "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 10, "gold": 1
+        "health": 22, "mana":40, "attack": 4, "defence": 5, "luck": 10,
+        "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 7, "gold": 1
         },
         "resistances": {
             "fire": 0.00, "ice": 0.00, "lightning": 0.00, "water": 0.00,
@@ -65,8 +65,8 @@ ENEMIES = {
         }
     },
     "orc": {"stats":{
-        "health": 30, "mana":40, "attack": 8, "defence": 8, "luck": 5,
-        "magic_defence": 2, "magic_attack": 0, "agility": 3, "exp": 25, "gold": 3
+        "health": 38, "mana":40, "attack": 10, "defence": 9, "luck": 5,
+        "magic_defence": 2, "magic_attack": 0, "agility": 3, "exp": 18, "gold": 2
         },
         "resistances": {
             "fire": 0.00, "ice": 0.00, "lightning": 0.00, "water": 0.00,
@@ -75,8 +75,8 @@ ENEMIES = {
         }
     },
     "skeleton": {"stats":{
-        "health": 25, "mana":70, "attack": 8, "defence": 10, "luck": 5,
-        "magic_defence": 15, "magic_attack": 0, "agility": 0, "exp": 30, "gold": 10
+        "health": 32, "mana":70, "attack": 10, "defence": 11, "luck": 5,
+        "magic_defence": 15, "magic_attack": 0, "agility": 0, "exp": 22, "gold": 6
         },
         "resistances": {
             "fire": -0.50, "ice": 0.50, "lightning": 0.00, "water": 0.00,
@@ -85,8 +85,8 @@ ENEMIES = {
         }
     },
     "troll": {"stats":{
-        "health": 50, "mana":40, "attack": 10, "defence": 10, "luck": 3,
-        "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 50, "gold": 5
+        "health": 65, "mana":40, "attack": 13, "defence": 11, "luck": 3,
+        "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 38, "gold": 4
         },
         "resistances": {
             "fire": -0.50, "ice": 0.10, "lightning": 0.00, "water": 0.20,
@@ -95,18 +95,18 @@ ENEMIES = {
         }
     },
     "wraith": {"stats":{
-        "health": 45, "mana":200, "attack": 10, "defence": 5, "luck": 10,
-        "magic_defence": 10, "magic_attack": 8, "agility": 25, "exp": 55, "gold": 15
+        "health": 55, "mana":200, "attack": 12, "defence": 6, "luck": 10,
+        "magic_defence": 12, "magic_attack": 14, "agility": 25, "exp": 40, "gold": 10
         },
         "resistances": {
             "fire": 0.00, "ice": 0.00, "lightning": 0.00, "water": 0.00,
             "earth": 0.00, "wind": 0.50, "light": -0.75, "dark": 1.0,
-            "poison": 1.00, "physical": 0.75,
+            "poison": 1.00, "physical": 0.55,
         }
     },
     "dark mage": {"stats":{
-        "health": 30, "mana":400, "attack": 3, "defence": 5, "luck": 15,
-        "magic_defence": 10, "magic_attack": 15, "agility": 5, "exp": 60, "gold": 20
+        "health": 38, "mana":400, "attack": 4, "defence": 6, "luck": 15,
+        "magic_defence": 12, "magic_attack": 22, "agility": 5, "exp": 45, "gold": 13
         },
         "resistances": {
             "fire": 0.00, "ice": 0.00, "lightning": 0.00, "water": 0.00,
@@ -115,8 +115,8 @@ ENEMIES = {
         }
     },
     "vampire": {"stats":{
-        "health": 70, "mana":400, "attack": 20, "defence": 15, "luck": 20,
-        "magic_defence": 25, "magic_attack": 15, "agility": 20, "exp": 80, "gold": 25
+        "health": 85, "mana":400, "attack": 22, "defence": 16, "luck": 20,
+        "magic_defence": 27, "magic_attack": 18, "agility": 22, "exp": 60, "gold": 16
         },
         "resistances": {
             "fire": -0.25, "ice": 0.25, "lightning": 0.00, "water": 0.00,
@@ -125,8 +125,8 @@ ENEMIES = {
         }
     },
     "zombie": {"stats":{
-        "health": 20, "mana":0, "attack": 5, "defence": 4, "luck": 2,
-        "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 18, "gold": 2
+        "health": 26, "mana":0, "attack": 6, "defence": 4, "luck": 2,
+        "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 13, "gold": 1
         },
         "resistances": {
             "fire": -0.25, "ice": 0.20, "lightning": 0.00, "water": 0.00,
@@ -135,8 +135,8 @@ ENEMIES = {
         }
     },
     "wild orc": {"stats":{
-        "health": 40, "mana":20, "attack": 10, "defence": 6, "luck": 4,
-        "magic_defence": 0, "magic_attack": 0, "agility": 5, "exp": 30, "gold": 4
+        "health": 50, "mana":20, "attack": 13, "defence": 7, "luck": 4,
+        "magic_defence": 0, "magic_attack": 0, "agility": 5, "exp": 22, "gold": 3
         },
         "resistances": {
             "fire": 0.00, "ice": 0.00, "lightning": 0.00, "water": 0.00,
@@ -145,8 +145,8 @@ ENEMIES = {
         }
     },
     "cyclops": {"stats":{
-        "health": 70, "mana":30, "attack": 15, "defence": 12, "luck": 3,
-        "magic_defence": 5, "magic_attack": 0, "agility": 0, "exp": 60, "gold": 8
+        "health": 88, "mana":30, "attack": 18, "defence": 13, "luck": 3,
+        "magic_defence": 5, "magic_attack": 0, "agility": 0, "exp": 45, "gold": 5
         },
         "resistances": {
             "fire": 0.00, "ice": 0.00, "lightning": -0.25, "water": 0.10,
@@ -155,8 +155,8 @@ ENEMIES = {
         }
     },
     "minotaur": {"stats":{
-        "health": 90, "mana":30, "attack": 18, "defence": 14, "luck": 3,
-        "magic_defence": 5, "magic_attack": 0, "agility": 5, "exp": 70, "gold": 10
+        "health": 115, "mana":30, "attack": 22, "defence": 15, "luck": 3,
+        "magic_defence": 5, "magic_attack": 0, "agility": 5, "exp": 52, "gold": 6
         },
         "resistances": {
             "fire": 0.00, "ice": 0.00, "lightning": 0.00, "water": 0.00,
@@ -165,8 +165,8 @@ ENEMIES = {
         }
     },
     "centaur": {"stats":{
-        "health": 40, "mana":60, "attack": 14, "defence": 10, "luck": 8,
-        "magic_defence": 5, "magic_attack": 3, "agility": 15, "exp": 55, "gold": 7
+        "health": 52, "mana":60, "attack": 17, "defence": 11, "luck": 8,
+        "magic_defence": 5, "magic_attack": 6, "agility": 15, "exp": 40, "gold": 5
         },
         "resistances": {
             "fire": 0.00, "ice": -0.10, "lightning": 0.00, "water": 0.10,
@@ -175,8 +175,8 @@ ENEMIES = {
         }
     },
     "yeti": {"stats":{
-        "health": 80, "mana":20, "attack": 16, "defence": 12, "luck": 4,
-        "magic_defence": 3, "magic_attack": 0, "agility": 3, "exp": 65, "gold": 9
+        "health": 100, "mana":20, "attack": 20, "defence": 13, "luck": 4,
+        "magic_defence": 3, "magic_attack": 0, "agility": 3, "exp": 48, "gold": 6
         },
         "resistances": {
             "fire": -0.50, "ice": 1.00, "lightning": 0.00, "water": 0.20,
@@ -185,8 +185,8 @@ ENEMIES = {
         }
     },
     "pumpkin horror": {"stats":{
-        "health": 38, "mana":80, "attack": 7, "defence": 6, "luck": 12,
-        "magic_defence": 8, "magic_attack": 5, "agility": 5, "exp": 40, "gold": 6
+        "health": 48, "mana":80, "attack": 9, "defence": 7, "luck": 12,
+        "magic_defence": 8, "magic_attack": 10, "agility": 5, "exp": 30, "gold": 4
         },
         "resistances": {
             "fire": -0.75, "ice": 0.20, "lightning": 0.00, "water": 0.10,
@@ -195,8 +195,8 @@ ENEMIES = {
         }
     },
     "green slime": {"stats":{
-        "health": 10, "mana":0, "attack": 2, "defence": 2, "luck": 5,
-        "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 8, "gold": 1
+        "health": 14, "mana":0, "attack": 3, "defence": 2, "luck": 5,
+        "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 5, "gold": 1
         },
         "resistances": {
             "fire": -0.50, "ice": 0.20, "lightning": -0.25, "water": 0.50,
@@ -205,8 +205,8 @@ ENEMIES = {
         }
     },
     "blue slime": {"stats":{
-        "health": 10, "mana":10, "attack": 3, "defence": 2, "luck": 5,
-        "magic_defence": 5, "magic_attack": 0, "agility": 0, "exp": 10, "gold": 1
+        "health": 14, "mana":10, "attack": 4, "defence": 2, "luck": 5,
+        "magic_defence": 5, "magic_attack": 0, "agility": 0, "exp": 7, "gold": 1
         },
         "resistances": {
             "fire": 0.00, "ice": 0.50, "lightning": -0.25, "water": 1.00,
@@ -215,8 +215,8 @@ ENEMIES = {
         }
     },
     "mother slime green": {"stats":{
-        "health": 40, "mana":0, "attack": 6, "defence": 5, "luck": 5,
-        "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 35, "gold": 5
+        "health": 52, "mana":0, "attack": 8, "defence": 5, "luck": 5,
+        "magic_defence": 0, "magic_attack": 0, "agility": 0, "exp": 26, "gold": 3
         },
         "resistances": {
             "fire": -0.50, "ice": 0.20, "lightning": -0.25, "water": 0.50,
@@ -225,8 +225,8 @@ ENEMIES = {
         }
     },
     "mother slime blue": {"stats":{
-        "health": 46, "mana":30, "attack": 7, "defence": 5, "luck": 5,
-        "magic_defence": 10, "magic_attack": 0, "agility": 0, "exp": 38, "gold": 5
+        "health": 60, "mana":30, "attack": 9, "defence": 5, "luck": 5,
+        "magic_defence": 10, "magic_attack": 0, "agility": 0, "exp": 28, "gold": 3
         },
         "resistances": {
             "fire": 0.00, "ice": 0.50, "lightning": -0.20, "water": 1.00,
@@ -238,37 +238,36 @@ ENEMIES = {
 
 
 ENEMIES_WEIGHT = {
-    # Level  goblin  orc  wild_orc  zombie  green_slime  blue_slime  skeleton  troll  pumpkin  centaur  cyclops  minotaur  yeti  wraith  dark_mage  vampire  mother_slime_green  mother_slime_blue
-    "1":  {"goblin": 60, "orc": 10, "wild orc": 0,  "zombie": 15, "green slime": 10, "blue slime": 5,
+    "1":  {"goblin": 50, "orc": 15, "wild orc": 0,  "zombie": 18, "green slime": 10, "blue slime": 7,
            "skeleton": 0,  "troll": 0,  "pumpkin horror": 0, "centaur": 0, "cyclops": 0, "minotaur": 0, "yeti": 0,
            "wraith": 0,  "dark mage": 0, "vampire": 0, "mother slime green": 0, "mother slime blue": 0},
-    "2":  {"goblin": 50, "orc": 15, "wild orc": 5,  "zombie": 15, "green slime": 10, "blue slime": 5,
-           "skeleton": 0,  "troll": 0,  "pumpkin horror": 0, "centaur": 0, "cyclops": 0, "minotaur": 0, "yeti": 0,
+    "2":  {"goblin": 35, "orc": 20, "wild orc": 8,  "zombie": 15, "green slime": 7, "blue slime": 5,
+           "skeleton": 5,  "troll": 0,  "pumpkin horror": 3, "centaur": 2, "cyclops": 0, "minotaur": 0, "yeti": 0,
            "wraith": 0,  "dark mage": 0, "vampire": 0, "mother slime green": 0, "mother slime blue": 0},
-    "3":  {"goblin": 35, "orc": 20, "wild orc": 10, "zombie": 10, "green slime": 8,  "blue slime": 5,
-           "skeleton": 0,  "troll": 5,  "pumpkin horror": 5, "centaur": 2, "cyclops": 0, "minotaur": 0, "yeti": 0,
-           "wraith": 0,  "dark mage": 0, "vampire": 0, "mother slime green": 0, "mother slime blue": 0},
-    "4":  {"goblin": 0, "orc": 20, "wild orc": 10, "zombie": 10, "green slime": 5,  "blue slime": 5,
-           "skeleton": 5,  "troll": 8,  "pumpkin horror": 5, "centaur": 5, "cyclops": 3, "minotaur": 0, "yeti": 0,
-           "wraith": 0,  "dark mage": 0, "vampire": 0, "mother slime green": 2, "mother slime blue": 2},
-    "5":  {"goblin": 0, "orc": 15, "wild orc": 10, "zombie": 8,  "green slime": 0,  "blue slime": 0,
-           "skeleton": 10, "troll": 10, "pumpkin horror": 5, "centaur": 8, "cyclops": 5, "minotaur": 3, "yeti": 3,
-           "wraith": 0,  "dark mage": 0, "vampire": 0, "mother slime green": 4, "mother slime blue": 4},
-    "6":  {"goblin": 0, "orc": 10, "wild orc": 8,  "zombie": 5,  "green slime": 0,  "blue slime": 0,
-           "skeleton": 12, "troll": 12, "pumpkin horror": 8, "centaur": 8, "cyclops": 8, "minotaur": 5, "yeti": 5,
-           "wraith": 5,  "dark mage": 4, "vampire": 0, "mother slime green": 0, "mother slime blue": 0},
-    "7":  {"goblin": 0,  "orc": 5,  "wild orc": 5,  "zombie": 0,  "green slime": 0,  "blue slime": 0,
-           "skeleton": 15, "troll": 15, "pumpkin horror": 5, "centaur": 8, "cyclops": 8, "minotaur": 8, "yeti": 8,
-           "wraith": 8,  "dark mage": 5, "vampire": 0, "mother slime green": 0, "mother slime blue": 0},
+    "3":  {"goblin": 15, "orc": 22, "wild orc": 12, "zombie": 10, "green slime": 5,  "blue slime": 4,
+           "skeleton": 8,  "troll": 8,  "pumpkin horror": 6, "centaur": 5, "cyclops": 3, "minotaur": 0, "yeti": 0,
+           "wraith": 0,  "dark mage": 2, "vampire": 0, "mother slime green": 0, "mother slime blue": 0},
+    "4":  {"goblin": 0, "orc": 18, "wild orc": 12, "zombie": 8, "green slime": 3,  "blue slime": 3,
+           "skeleton": 10,  "troll": 12,  "pumpkin horror": 8, "centaur": 7, "cyclops": 6, "minotaur": 3, "yeti": 3,
+           "wraith": 3,  "dark mage": 4, "vampire": 0, "mother slime green": 3, "mother slime blue": 3},
+    "5":  {"goblin": 0, "orc": 12, "wild orc": 8, "zombie": 5,  "green slime": 0,  "blue slime": 0,
+           "skeleton": 12, "troll": 12, "pumpkin horror": 6, "centaur": 9, "cyclops": 8, "minotaur": 5, "yeti": 5,
+           "wraith": 5,  "dark mage": 6, "vampire": 2, "mother slime green": 5, "mother slime blue": 5},
+    "6":  {"goblin": 0, "orc": 6, "wild orc": 5,  "zombie": 3,  "green slime": 0,  "blue slime": 0,
+           "skeleton": 12, "troll": 13, "pumpkin horror": 8, "centaur": 8, "cyclops": 10, "minotaur": 8, "yeti": 8,
+           "wraith": 8,  "dark mage": 7, "vampire": 4, "mother slime green": 0, "mother slime blue": 0},
+    "7":  {"goblin": 0,  "orc": 3,  "wild orc": 3,  "zombie": 0,  "green slime": 0,  "blue slime": 0,
+           "skeleton": 12, "troll": 13, "pumpkin horror": 5, "centaur": 7, "cyclops": 9, "minotaur": 10, "yeti": 10,
+           "wraith": 10,  "dark mage": 9, "vampire": 9, "mother slime green": 0, "mother slime blue": 0},
     "8":  {"goblin": 0,  "orc": 0,  "wild orc": 0,  "zombie": 0,  "green slime": 0,  "blue slime": 0,
-           "skeleton": 15, "troll": 15, "pumpkin horror": 5, "centaur": 5, "cyclops": 10, "minotaur": 10, "yeti": 10,
-           "wraith": 12, "dark mage": 8, "vampire": 5, "mother slime green": 5, "mother slime blue": 0},
+           "skeleton": 10, "troll": 12, "pumpkin horror": 4, "centaur": 5, "cyclops": 10, "minotaur": 12, "yeti": 12,
+           "wraith": 12, "dark mage": 10, "vampire": 10, "mother slime green": 3, "mother slime blue": 0},
     "9":  {"goblin": 0,  "orc": 0,  "wild orc": 0,  "zombie": 0,  "green slime": 0,  "blue slime": 0,
-           "skeleton": 10, "troll": 10, "pumpkin horror": 0, "centaur": 5, "cyclops": 10, "minotaur": 15, "yeti": 10,
-           "wraith": 15, "dark mage": 10, "vampire": 10, "mother slime green": 5, "mother slime blue": 0},
+           "skeleton": 7,  "troll": 8,  "pumpkin horror": 0, "centaur": 4, "cyclops": 10, "minotaur": 15, "yeti": 12,
+           "wraith": 15, "dark mage": 12, "vampire": 14, "mother slime green": 3, "mother slime blue": 0},
     "10": {"goblin": 0,  "orc": 0,  "wild orc": 0,  "zombie": 0,  "green slime": 0,  "blue slime": 0,
-           "skeleton": 5,  "troll": 5,  "pumpkin horror": 0, "centaur": 5, "cyclops": 10, "minotaur": 15, "yeti": 10,
-           "wraith": 15, "dark mage": 10, "vampire": 20, "mother slime green": 0, "mother slime blue": 5},
+           "skeleton": 3,  "troll": 3,  "pumpkin horror": 0, "centaur": 3, "cyclops": 8, "minotaur": 15, "yeti": 10,
+           "wraith": 18, "dark mage": 12, "vampire": 23, "mother slime green": 0, "mother slime blue": 5},
 }
 
 MOB_WEAPON_PREFERENCES = {
@@ -741,43 +740,44 @@ QUALITY_WEIGHT = {
     },
 }
 RARE_LEVEL_THRESHOLD = {
-        "goblin":              3,
-        "orc":                 5,
-        "skeleton":            7,
-        "troll":               6,
-        "wraith":              8,
-        "dark mage":           8,
-        "vampire":             9,
+        "goblin":              2,
+        "orc":                 3,
+        "skeleton":            5,
+        "troll":               5,
+        "wraith":              7,
+        "dark mage":           6,
+        "vampire":             8,
         # New mobs
-        "zombie":              3,
-        "wild orc":            5,
-        "cyclops":             6,
-        "minotaur":            7,
-        "centaur":             6,
-        "yeti":                7,
-        "pumpkin horror":      5,
-        "green slime":         2,
-        "blue slime":          2,
-        "mother slime green":  5,
-        "mother slime blue":   5,
+        "zombie":              2,
+        "wild orc":            3,
+        "cyclops":             5,
+        "minotaur":            6,
+        "centaur":             5,
+        "yeti":                6,
+        "pumpkin horror":      4,
+        "green slime":         1,
+        "blue slime":          1,
+        "mother slime green":  4,
+        "mother slime blue":   4,
     }
 RARITY = {
-    "": 90,
-    "rare": 7,
-    "epic": 2.5,
-    "legendary": 0.5
+    "": 94,
+    "rare": 4.5,
+    "epic": 1.35,
+    "legendary": 0.15
 }
 
-RARE_HP_MULT = {"": 1, "rare": 1.5, "epic": 2.0, "legendary": 3.0}
+RARE_HP_MULT = {"": 1, "rare": 1.6, "epic": 2.2, "legendary": 3.2}
 RARE_LOOT_ROLLS = {"": 0, "rare": 1, "epic": 2, "legendary": 3}
 
 BASE_WEAPONS = {
-    "dagger": {"damage": Elements("physical",5), "attack": 4, "value": 40, "description": "A small, easily concealed blade. Quick to draw and deadly in close quarters."},
-    "short sword": {"damage":  Elements("physical",10), "attack": 3, "value": 60, "description": "A versatile one-handed blade, well-balanced for both offense and defense."},
-    "long sword": {"damage":  Elements("physical",12), "attack": 2, "value": 80, "description": "A classic knightly weapon. Longer reach and heavier strikes, but slower to swing."},
-    "spear": {"damage":  Elements("physical",11), "attack": 2, "value": 100, "description": "A long-shafted weapon tipped with an iron point. Excellent for keeping enemies at distance."},
-    "club": {"damage":  Elements("physical",17), "attack": 1, "value": 50, "description": "A crude but effective bludgeon. Slow and graceless, but capable of bone-crushing blows."},
-    "axe": {"damage":  Elements("physical",20), "attack": 0, "value": 70, "description": "A heavy cleaving weapon. Devastating on impact, but leaves you wide open between swings."},
+
+    "dagger":      {"damage": Elements("physical",  4), "attack": 4, "value": 40,  "description": "A small, easily concealed blade. Quick to draw and deadly in close quarters."},
+    "short sword": {"damage": Elements("physical",  8), "attack": 3, "value": 60,  "description": "A versatile one-handed blade, well-balanced for both offense and defense."},
+    "long sword":  {"damage": Elements("physical", 10), "attack": 2, "value": 80,  "description": "A classic knightly weapon. Longer reach and heavier strikes, but slower to swing."},
+    "spear":       {"damage": Elements("physical",  9), "attack": 2, "value": 100, "description": "A long-shafted weapon tipped with an iron point. Excellent for keeping enemies at distance."},
+    "club":        {"damage": Elements("physical", 13), "attack": 1, "value": 50,  "description": "A crude but effective bludgeon. Slow and graceless, but capable of bone-crushing blows."},
+    "axe":         {"damage": Elements("physical", 16), "attack": 0, "value": 70,  "description": "A heavy cleaving weapon. Devastating on impact, but leaves you wide open between swings."},
 }
 
 # Natural weapons for mobs that can't hold gear (slimes, yeti, troll, pumpkin horror).
@@ -1005,32 +1005,32 @@ MOB_STAFF_PREFERENCES = {
 }
 
 WEAPON_QUALITIES = {
-    "broken": {"damage_mod": 0.3, "attack_mod": -2, "gold_mod": 0.1},
-    "crude": {"damage_mod": 0.5, "attack_mod": -1, "gold_mod": 0.3},
-    "rusted": {"damage_mod": 0.7, "attack_mod": 0, "gold_mod": 0.6},
-    "reinforced": {"damage_mod": 1.5, "attack_mod": 1, "gold_mod": 1.5},
-    "masterwork": {"damage_mod": 2, "attack_mod": 2, "gold_mod": 2},
+    "broken":     {"damage_mod": 0.3, "attack_mod": -2, "gold_mod": 0.1},
+    "crude":      {"damage_mod": 0.5, "attack_mod": -1, "gold_mod": 0.3},
+    "rusted":     {"damage_mod": 0.7, "attack_mod":  0, "gold_mod": 0.6},
+    "reinforced": {"damage_mod": 1.3, "attack_mod":  1, "gold_mod": 1.4},
+    "masterwork": {"damage_mod": 1.7, "attack_mod":  2, "gold_mod": 1.8},
 }
 
 ARMOR_QUALITIES = {
-    "destroyed": {"mod":0.2,"gold_mod":0.1},
-    "worn": {"mod":0.7,"gold_mod":0.5},
-    "sturdy": {"mod":1.4,"gold_mod":1.2},
-    "reinforced": {"mod":1.7,"gold_mod":1.5},
-    "masterwork": {"mod":2,"gold_mod":2}
+    "destroyed":  {"mod": 0.2, "gold_mod": 0.1},
+    "worn":       {"mod": 0.7, "gold_mod": 0.5},
+    "sturdy":     {"mod": 1.2, "gold_mod": 1.1},
+    "reinforced": {"mod": 1.4, "gold_mod": 1.4},
+    "masterwork": {"mod": 1.6, "gold_mod": 1.8},
 }
 
 BASE_ITEMS = {
-    "Healing Potion":{"damage":{"healing":20},"value":120},
-    "Bomb": {"damage":{"fire":30},"attack":-1,"value":200,"distance":3},
+    "Healing Potion": {"damage": {"healing": 12}, "value": 120},
+    "Bomb":           {"damage": {"fire": 22},  "attack": -1, "value": 200, "distance": 3},
 }
 
 
 
 ITEM_QUALITY = {
-    "diluted":{"mod":0.5,"gold_mod":0.5},
-    "low": {"mod":0.75,"gold_mod":0.75},
-    "concentrated": {"mod":1.5,"gold_mod":1.5}
+    "diluted":      {"mod": 0.5,  "gold_mod": 0.5},
+    "low":          {"mod": 0.75, "gold_mod": 0.75},
+    "concentrated": {"mod": 1.35, "gold_mod": 1.5},
 }
 
 PLAYER_STARTING_GEAR = {

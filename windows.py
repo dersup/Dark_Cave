@@ -163,6 +163,7 @@ class Windows:
         # _log/_log_timer above, which are the fading 6-message HUD overlay.
         # The Tab-toggled log panel reads from this, so nothing scrolls off.
         self._history: list = []
+        self.player_choice = None
 
         # All panels live here; adding a new one is one line.
         self._panels = {
